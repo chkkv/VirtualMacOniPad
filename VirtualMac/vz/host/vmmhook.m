@@ -406,6 +406,7 @@ static uint64_t vmm_vcpus_exit_calls;
 static uint64_t vmm_vm_map_calls;
 static uint64_t vmm_vm_protect_calls;
 static xo_t fake_usb_location_reply_connection;
+static uint64_t bt_audio_blocked;
 static bool runtime_debug_logging;
 static bool runtime_trace_all_vcpu;
 static uint64_t runtime_xpc_trace_limit = 8;
@@ -1019,6 +1020,26 @@ static const char *xpc_message_name(xo_t message) {
     return xpc_dictionary_get_string(message, "name");
 }
 
+// Bluetooth-audio XPC that Ventura's Virtualization session emits even when
+// the guest does not need Bluetooth routing. Each send wakes bluetoothd, so
+// drop it unless the user opted in via the Allow Bluetooth setting.
+static bool is_bluetooth_audio_xpc(xo_t message) {
+    return message && xpc_get_type(message) == (void *)_xpc_type_dictionary &&
+        (xpc_dictionary_get_value(message, "kBTAudioMsgProcess") ||
+         xpc_dictionary_get_value(message, "kBTAudioMsgMethod"));
+}
+
+static bool bluetooth_audio_blocked(xo_t message) {
+    if (environment_flag_enabled("VZ_ALLOW_BLUETOOTH") ||
+        !is_bluetooth_audio_xpc(message))
+        return false;
+    uint64_t sequence = __atomic_add_fetch(&bt_audio_blocked, 1, __ATOMIC_RELAXED);
+    if (sequence <= 8)
+        logf_("[vmmhook] dropped kBTAudio XPC #%llu (Allow Bluetooth off)",
+              (unsigned long long)sequence);
+    return true;
+}
+
 static void count_received_xpc(const char *name) {
     if (!runtime_debug_logging || !name)
         return;
@@ -1119,6 +1140,8 @@ static void trace_xpc_message(const char *operation, xo_t connection,
 }
 
 static void vmm_xpc_connection_send_message(xo_t connection, xo_t message) {
+    if (bluetooth_audio_blocked(message))
+        return;
     if (fake_usb_hci_enabled() &&
         connection == fake_usb_location_reply_connection &&
         message && xpc_get_type(message) == (void *)_xpc_type_dictionary) {
@@ -1144,6 +1167,8 @@ static void vmm_xpc_connection_send_message(xo_t connection, xo_t message) {
 static void vmm_xpc_connection_send_message_with_reply(
     xo_t connection, xo_t message, dispatch_queue_t queue,
     void (^handler)(xo_t)) {
+    if (bluetooth_audio_blocked(message))
+        return;
     count_sent_xpc(xpc_message_name(message));
     trace_xpc_message("send-with-reply", connection, message);
     xpc_connection_send_message_with_reply(
@@ -2915,7 +2940,12 @@ __attribute__((constructor)) static void hook_init(void) {
                                "AVAudioSessionCategoryPlayAndRecord");
     id *modeSymbol = dlsym(RTLD_DEFAULT, "AVAudioSessionModeDefault");
     id audioError = nil;
-    NSUInteger audioOptions = 0x1U | 0x4U | 0x8U;
+    // 0x1 = MixWithOthers, 0x8 = DefaultToSpeaker. 0x4 (AllowBluetooth/HFP)
+    // is opt-in via the global setting, because activating it wakes and keeps
+    // bluetoothd busy even without a connected Bluetooth audio device.
+    NSUInteger audioOptions = 0x1U | 0x8U;
+    if (environment_flag_enabled("VZ_ALLOW_BLUETOOTH"))
+        audioOptions |= 0x4U;
     BOOL categoryOK = audioSession && categorySymbol && modeSymbol &&
         ((BOOL(*)(id, SEL, id, id, NSUInteger, id *))objc_msgSend)(
             audioSession,

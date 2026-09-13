@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "कोई अन्य वर्चुअल Mac चल रहा है";
 "Apple Pencil Pressure" = "Apple Pencil का दबाव";
 "Apple Pencil Pressure and Tilt" = "Apple Pencil का दबाव और झुकाव";
+"Audio" = "Audio";
 "Audio and Acceleration" = "ऑडियो और एक्सेलरेशन";
 "Audio Output" = "ऑडियो आउटपुट";
 "Available macOS Releases" = "उपलब्ध macOS रिलीज़";
 "Available macOS Versions" = "उपलब्ध macOS संस्करण";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "OpenGL एक्सेलेरेशन के लिए Virtual Mac गेस्ट टूल्स आवश्यक हैं, इसलिए गेस्ट टूल्स बंद करने पर OpenGL एक्सेलेरेशन भी बंद हो जाएगा। Final Cut Pro जैसे ऐप मुख्य रूप से Metal का उपयोग करते हैं, लेकिन शुरू होने के लिए OpenGL क्षमताओं की जाँच करते हैं।";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "बूट और नेटवर्क";
 "Bottom Left" = "नीचे बाईं ओर";
 "Bottom Right" = "नीचे दाईं ओर";

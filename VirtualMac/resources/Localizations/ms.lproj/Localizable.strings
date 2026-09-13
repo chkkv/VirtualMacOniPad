@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "Mac maya Lain Sedang Berjalan";
 "Apple Pencil Pressure" = "Tekanan Apple Pencil";
 "Apple Pencil Pressure and Tilt" = "Tekanan dan Kecondongan Apple Pencil";
+"Audio" = "Audio";
 "Audio and Acceleration" = "Audio dan Akselerasi";
 "Audio Output" = "Output Audio";
 "Available macOS Releases" = "Keluaran macOS yang Tersedia";
 "Available macOS Versions" = "Versi macOS yang Tersedia";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "Oleh sebab pecutan OpenGL memerlukan alat tetamu Virtual Mac, mematikan alat tetamu juga akan mematikan pecutan OpenGL. App seperti Final Cut Pro kebanyakannya menggunakan Metal, tetapi menyemak keupayaan OpenGL untuk dibuka.";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "Boot dan Rangkaian";
 "Bottom Left" = "Bawah Kiri";
 "Bottom Right" = "Bawah Kanan";

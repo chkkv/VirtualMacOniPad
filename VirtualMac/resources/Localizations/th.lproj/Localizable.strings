@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "มี Virtual Mac เครื่องอื่นกำลังทำงานอยู่";
 "Apple Pencil Pressure" = "แรงกดของ Apple Pencil";
 "Apple Pencil Pressure and Tilt" = "แรงกดและการเอียงของ Apple Pencil";
+"Audio" = "Audio";
 "Audio and Acceleration" = "เสียงและการเร่งความเร็ว";
 "Audio Output" = "สัญญาณเสียงออก";
 "Available macOS Releases" = "รุ่น macOS ที่พร้อมใช้งาน";
 "Available macOS Versions" = "เวอร์ชัน macOS ที่มีให้เลือก";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "เนื่องจากการเร่งความเร็ว OpenGL ต้องใช้เครื่องมือเกสต์ของ Virtual Mac การปิดเครื่องมือเกสต์จะปิดการเร่งความเร็ว OpenGL ด้วย แอปอย่าง Final Cut Pro ใช้ Metal เป็นหลัก แต่จะตรวจสอบความสามารถของ OpenGL ก่อนเปิด";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "การเริ่มระบบและเครือข่าย";
 "Bottom Left" = "ล่างซ้าย";
 "Bottom Right" = "ล่างขวา";

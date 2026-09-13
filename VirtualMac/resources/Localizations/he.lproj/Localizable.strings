@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "Mac וירטואלי אחר פועל";
 "Apple Pencil Pressure" = "לחץ Apple Pencil";
 "Apple Pencil Pressure and Tilt" = "לחץ והטיה של Apple Pencil";
+"Audio" = "Audio";
 "Audio and Acceleration" = "שמע והאצה";
 "Audio Output" = "פלט שמע";
 "Available macOS Releases" = "גרסאות macOS זמינות";
 "Available macOS Versions" = "גרסאות macOS זמינות";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "מכיוון שהאצת OpenGL דורשת את כלי האורח של Virtual Mac, כיבוי כלי האורח יכבה גם את האצת OpenGL. יישומים כמו Final Cut Pro משתמשים בעיקר ב‑Metal, אך בודקים יכולות OpenGL כדי להיפתח.";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "אתחול ורשת";
 "Bottom Left" = "למטה משמאל";
 "Bottom Right" = "למטה מימין";

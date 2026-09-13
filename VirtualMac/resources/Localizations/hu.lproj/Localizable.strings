@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "Egy másik virtuális Mac fut";
 "Apple Pencil Pressure" = "Apple Pencil nyomásérzékelése";
 "Apple Pencil Pressure and Tilt" = "Apple Pencil nyomás és dőlés";
+"Audio" = "Audio";
 "Audio and Acceleration" = "Hang és gyorsítás";
 "Audio Output" = "Hangkimenet";
 "Available macOS Releases" = "Elérhető macOS-kiadások";
 "Available macOS Versions" = "Elérhető macOS-verziók";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "Mivel az OpenGL-gyorsításhoz szükség van a Virtual Mac vendégeszközeire, azok kikapcsolása az OpenGL-gyorsítást is kikapcsolja. A Final Cut Pro és más appok főként a Metalt használják, de induláskor ellenőrzik az OpenGL-képességeket.";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "Indítás és hálózat";
 "Bottom Left" = "Bal alsó";
 "Bottom Right" = "Jobb alsó";

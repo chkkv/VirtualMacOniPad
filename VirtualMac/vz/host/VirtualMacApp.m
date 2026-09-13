@@ -4671,8 +4671,11 @@ static void requestMicrophoneAccess(dispatch_block_t continuation) {
     NSError *sessionError = nil;
     AVAudioSessionCategoryOptions sessionOptions =
         AVAudioSessionCategoryOptionMixWithOthers |
-        AVAudioSessionCategoryOptionDefaultToSpeaker |
-        VZAVSessionOptionAllowBluetoothHFP;
+        AVAudioSessionCategoryOptionDefaultToSpeaker;
+    // Bluetooth HFP routing is opt-in. Activating it wakes bluetoothd and can
+    // keep it busy even when no Bluetooth audio device is connected.
+    if ([VZAppSettings.sharedSettings boolForKey:VZBluetoothAudioRoutingKey])
+        sessionOptions |= VZAVSessionOptionAllowBluetoothHFP;
     BOOL categoryOK = [session
         setCategory:AVAudioSessionCategoryPlayAndRecord
                mode:AVAudioSessionModeDefault
@@ -5214,6 +5217,12 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
     BOOL metalBCSupport =
         [options[VZMetalBCSupportEnabledKey] boolValue];
     setenv("VZ_METAL_BC_SUPPORT", metalBCSupport ? "1" : "0", 1);
+    // Let the VMM decide whether to request Bluetooth HFP routing for its
+    // audio session. Leaving it off prevents the recurring bluetoothd wakeups
+    // seen when the host keeps an AllowBluetooth session active.
+    BOOL allowBluetoothAudio =
+        [VZAppSettings.sharedSettings boolForKey:VZBluetoothAudioRoutingKey];
+    setenv("VZ_ALLOW_BLUETOOTH", allowBluetoothAudio ? "1" : "0", 1);
 
     setStatus(VZL(@"Loading extracted Apple virtualization frameworks…"));
     BOOL guestToolsEnabled =

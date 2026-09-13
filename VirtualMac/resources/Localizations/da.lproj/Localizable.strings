@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "En anden Virtual Mac kører";
 "Apple Pencil Pressure" = "Tryk med Apple Pencil";
 "Apple Pencil Pressure and Tilt" = "Tryk og hældning med Apple Pencil";
+"Audio" = "Audio";
 "Audio and Acceleration" = "Lyd og acceleration";
 "Audio Output" = "Lydudgang";
 "Available macOS Releases" = "Tilgængelige macOS-udgivelser";
 "Available macOS Versions" = "Tilgængelige macOS-versioner";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "Da OpenGL-acceleration kræver Virtual Mac-gæsteværktøjer, slås OpenGL-acceleration også fra, når gæsteværktøjerne slås fra. Apps som Final Cut Pro bruger primært Metal, men kontrollerer OpenGL-funktioner for at kunne starte.";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "Start og netværk";
 "Bottom Left" = "Nederst til venstre";
 "Bottom Right" = "Nederst til højre";

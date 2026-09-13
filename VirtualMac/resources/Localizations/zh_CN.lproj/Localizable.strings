@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "另一台虚拟Mac正在运行";
 "Apple Pencil Pressure" = "Apple Pencil压力";
 "Apple Pencil Pressure and Tilt" = "Apple Pencil压感与倾斜";
+"Audio" = "Audio";
 "Audio and Acceleration" = "音频与加速";
 "Audio Output" = "音频输出";
 "Available macOS Releases" = "可用的macOS版本";
 "Available macOS Versions" = "可用的macOS版本";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "OpenGL加速需要虚拟Mac客体工具，因此关闭客体工具也会关闭OpenGL加速。Final Cut Pro等app主要使用Metal，但启动时仍会检查OpenGL功能。";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "启动与网络";
 "Bottom Left" = "左下角";
 "Bottom Right" = "右下角";

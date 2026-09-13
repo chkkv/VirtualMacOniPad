@@ -23,6 +23,7 @@ NSString * const VZKeyboardCrashWorkaroundKey = @"KeyboardCrashWorkaround";
 NSString * const VZExternalDisplayScrollFixKey = @"ExternalDisplayScrollFix";
 NSString * const VZScrollingSpeedKey = @"ScrollingSpeed";
 NSString * const VZHUDOpacityKey = @"HUDOpacity";
+NSString * const VZBluetoothAudioRoutingKey = @"BluetoothAudioRouting";
 NSString * const VZDebugLoggingKey = @"DebugLogging";
 NSString * const VZDebugLoggingModeOff = @"off";
 NSString * const VZDebugLoggingModeNextBoot = @"next";
@@ -106,6 +107,7 @@ BOOL VZIsRootHideEnvironment(void)
         VZExternalDisplayScrollFixKey: @YES,
         VZScrollingSpeedKey: @"0.25",
         VZHUDOpacityKey: @"0.55",
+        VZBluetoothAudioRoutingKey: @NO,
         VZDebugLoggingKey: VZDebugLoggingModeOff,
     };
 }

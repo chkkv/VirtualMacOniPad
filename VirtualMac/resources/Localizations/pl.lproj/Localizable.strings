@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "Inny Virtual Mac jest uruchomiony";
 "Apple Pencil Pressure" = "Nacisk Apple Pencil";
 "Apple Pencil Pressure and Tilt" = "Nacisk i pochylenie Apple Pencil";
+"Audio" = "Audio";
 "Audio and Acceleration" = "Dźwięk i akceleracja";
 "Audio Output" = "Wyjście dźwięku";
 "Available macOS Releases" = "Dostępne wydania macOS";
 "Available macOS Versions" = "Dostępne wersje macOS";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "Ponieważ przyspieszenie OpenGL wymaga narzędzi gościa Virtual Mac, ich wyłączenie spowoduje także wyłączenie przyspieszenia OpenGL. Aplikacje takie jak Final Cut Pro używają głównie Metal, ale przed uruchomieniem sprawdzają możliwości OpenGL.";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "Uruchamianie i sieć";
 "Bottom Left" = "Na dole po lewej";
 "Bottom Right" = "Na dole po prawej";

@@ -227,7 +227,7 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
 {
     (void)tableView;
-    return 8;
+    return 9;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
@@ -235,7 +235,7 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
     (void)tableView;
     return section == 0 ? 4 : section == 1 ? 6 : section == 2 ? 4 :
         section == 3 ? 3 : section == 4 ? 3 : section == 5 ? 2 :
-        section == 6 ? 1 : 4;
+        section == 6 ? 1 : section == 7 ? 4 : 1;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section
@@ -243,7 +243,7 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
     (void)tableView;
     return @[VZL(@"General"), VZL(@"Touch"), VZL(@"Input"),
              VZL(@"Compatibility"), VZL(@"Storage"), VZL(@"About"),
-             VZL(@"Developers"), VZL(@"Support")][section];
+             VZL(@"Developers"), VZL(@"Support"), VZL(@"Audio")][section];
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section
@@ -482,6 +482,14 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
         cell.textLabel.text = titles[indexPath.row];
         cell.imageView.image = [UIImage systemImageNamed:images[indexPath.row]];
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    } else if (indexPath.section == 8) {
+        cell.textLabel.text = VZL(@"BluetoothAudioRouting");
+        UISwitch *toggle = [[[UISwitch alloc] init] autorelease];
+        toggle.on = [settings boolForKey:VZBluetoothAudioRoutingKey];
+        [toggle addTarget:self action:@selector(allowBluetoothToggleChanged:)
+            forControlEvents:UIControlEventValueChanged];
+        cell.accessoryView = toggle;
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
     }
     return cell;
 }
@@ -557,6 +565,11 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
 - (void)autoDeleteToggleChanged:(UISwitch *)sender
 {
     [VZAppSettings.sharedSettings setBool:sender.on forKey:VZAutoDeleteRestoreImageKey];
+}
+
+- (void)allowBluetoothToggleChanged:(UISwitch *)sender
+{
+    [VZAppSettings.sharedSettings setBool:sender.on forKey:VZBluetoothAudioRoutingKey];
 }
 
 - (void)hudOpacityChanged:(UISlider *)sender

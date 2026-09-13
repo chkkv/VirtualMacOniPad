@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "別の仮想Macが実行中です";
 "Apple Pencil Pressure" = "Apple Pencilの筆圧";
 "Apple Pencil Pressure and Tilt" = "Apple Pencilの筆圧と傾き";
+"Audio" = "Audio";
 "Audio and Acceleration" = "オーディオとアクセラレーション";
 "Audio Output" = "オーディオ出力";
 "Available macOS Releases" = "利用可能なmacOSリリース";
 "Available macOS Versions" = "利用可能なmacOSバージョン";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "OpenGLアクセラレーションにはVirtual Macゲストツールが必要なため、ゲストツールをオフにするとOpenGLアクセラレーションもオフになります。Final Cut Proなどのアプリは主にMetalを使用しますが、起動時にOpenGL機能を確認します。";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "起動とネットワーク";
 "Bottom Left" = "左下";
 "Bottom Right" = "右下";

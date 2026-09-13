@@ -21,11 +21,13 @@
 "Another Virtual Mac Is Running" = "다른 가상 Mac이 실행 중입니다";
 "Apple Pencil Pressure" = "Apple Pencil 압력";
 "Apple Pencil Pressure and Tilt" = "Apple Pencil 압력 및 기울기";
+"Audio" = "Audio";
 "Audio and Acceleration" = "오디오 및 가속";
 "Audio Output" = "오디오 출력";
 "Available macOS Releases" = "사용 가능한macOS 릴리스";
 "Available macOS Versions" = "사용 가능한 macOS 버전";
 "Because OpenGL acceleration requires Virtual Mac guest tools, turning off Virtual Mac guest tools will also turn off OpenGL acceleration. Apps such as Final Cut Pro mostly use Metal, but they check for OpenGL capabilities in order to launch." = "OpenGL 가속에는 Virtual Mac 게스트 도구가 필요하므로 게스트 도구를 끄면 OpenGL 가속도 꺼집니다. Final Cut Pro와 같은 앱은 주로 Metal을 사용하지만 실행할 때 OpenGL 기능을 확인합니다.";
+"BluetoothAudioRouting" = "Bluetooth Audio Routing";
 "Boot and Network" = "부팅 및 네트워크";
 "Bottom Left" = "왼쪽 하단";
 "Bottom Right" = "오른쪽 하단";

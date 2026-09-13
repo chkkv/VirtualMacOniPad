@@ -25,6 +25,7 @@ FOUNDATION_EXPORT NSString * const VZKeyboardCrashWorkaroundKey;
 FOUNDATION_EXPORT NSString * const VZExternalDisplayScrollFixKey;
 FOUNDATION_EXPORT NSString * const VZScrollingSpeedKey;
 FOUNDATION_EXPORT NSString * const VZHUDOpacityKey;
+FOUNDATION_EXPORT NSString * const VZBluetoothAudioRoutingKey;
 FOUNDATION_EXPORT NSString * const VZDebugLoggingKey;
 FOUNDATION_EXPORT NSString * const VZDebugLoggingModeOff;
 FOUNDATION_EXPORT NSString * const VZDebugLoggingModeNextBoot;
