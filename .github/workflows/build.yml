@@ -1,0 +1,149 @@
+name: Build Package
+
+# Builds the iPadOS package from the dependency bundle published by the
+# "Publish Dependencies" workflow. No restore images are downloaded here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dependencies_tag:
+        description: "Release tag to use (blank = latest dependencies-*)"
+        required: false
+        default: ""
+      release_version:
+        description: "Package release version, e.g. 1.2.3 (blank = script default)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 350
+    env:
+      VZ_BUILD_ROOT: ${{ github.workspace }}/build
+      PYTHONUNBUFFERED: "1"
+    steps:
+      # Full history is required: the app's CFBundleVersion is the repository
+      # commit count, which build-ipad-deb.sh asserts against.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve dependencies release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REQUESTED="${{ inputs.dependencies_tag }}"
+          if [ -n "$REQUESTED" ]; then
+            TAG="$REQUESTED"
+          else
+            TAG="$(gh release list --limit 100 --json tagName,createdAt \
+              -q '[.[] | select(.tagName | startswith("dependencies-"))] | sort_by(.createdAt) | reverse | .[0].tagName')"
+          fi
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "no dependencies release found" >&2
+            exit 1
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "using dependencies release: $TAG"
+
+      - name: Download dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/deps" "$VZ_BUILD_ROOT/inputs"
+          gh release download "$TAG" -D "$RUNNER_TEMP/deps"
+          ls -lh "$RUNNER_TEMP/deps"
+
+      - name: Unpack dependencies
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/deps"
+
+          # Reassemble any archive that was split into .part-* assets.
+          : > "$RUNNER_TEMP/bases.txt"
+          for part in *.tar.xz.part-*; do
+            if [ -e "$part" ]; then
+              printf '%s\n' "${part%.part-*}" >> "$RUNNER_TEMP/bases.txt"
+            fi
+          done
+          if [ -s "$RUNNER_TEMP/bases.txt" ]; then
+            sort -u "$RUNNER_TEMP/bases.txt" | while IFS= read -r base; do
+              echo "merging $base"
+              cat "$base".part-* > "$base"
+              rm -f "$base".part-*
+            done
+          fi
+
+          for archive in *.tar.xz; do
+            if [ -e "$archive" ]; then
+              echo "extracting $archive"
+              tar -xf "$archive" -C "$VZ_BUILD_ROOT/inputs"
+            fi
+          done
+
+          echo "===== inputs size ====="
+          du -sh "$VZ_BUILD_ROOT/inputs"
+          find "$VZ_BUILD_ROOT/inputs" -type f | sort | head -100
+
+      # analyze-device-support.sh falls back to
+      # $VZ_BUILD_ROOT/downloads/DeviceSupport_macOS_27_beta.dmg, which
+      # build-ipad-installation.sh requires. Fetch the mirrored release and
+      # verify it against the digest pinned in setup.sh.
+      - name: Download DeviceSupport
+        env:
+          DEVICE_SUPPORT_NAME: DeviceSupport_macOS_27_beta.dmg
+          DEVICE_SUPPORT_URL: https://github.com/nfzerox/DeviceSupportMirror/releases/download/1.0/DeviceSupport_macOS_27_beta.dmg
+          DEVICE_SUPPORT_SHA256: d02e14429a02a78d8bf9d84df8ae55f5a03f2a00dbf58767f451b68eda417ca1
+        run: |
+          set -euo pipefail
+          DEST="$VZ_BUILD_ROOT/downloads/$DEVICE_SUPPORT_NAME"
+          mkdir -p "$VZ_BUILD_ROOT/downloads"
+          curl --fail --location --continue-at - --output "$DEST" "$DEVICE_SUPPORT_URL"
+          actual="$(shasum -a 256 "$DEST" | awk '{print $1}')"
+          if [ "$actual" != "$DEVICE_SUPPORT_SHA256" ]; then
+            echo "DeviceSupport SHA-256 mismatch: expected $DEVICE_SUPPORT_SHA256, got $actual" >&2
+            exit 1
+          fi
+          ls -lh "$DEST"
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew bundle --file VirtualMac/Brewfile || \
+            brew install dpkg gnu-tar go ldid-procursus libimobiledevice python rsync aria2
+
+      - name: Bootstrap toolchain
+        run: |
+          set -euo pipefail
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          VirtualMac/scripts/bootstrap.sh
+
+      - name: Build package
+        env:
+          VZ_RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+          VirtualMac/scripts/build-ipad-deb.sh
+
+      - name: Report package
+        if: always()
+        run: |
+          df -h
+          ls -lh "$VZ_BUILD_ROOT/release" 2>/dev/null || true
+
+      - name: Upload package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VirtualMac-deb
+          path: build/release/*.deb
+          retention-days: 7
+          if-no-files-found: error

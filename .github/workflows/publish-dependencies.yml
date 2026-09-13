@@ -1,0 +1,115 @@
+name: Publish Dependencies
+
+# Extracts the build inputs and publishes them as dated release assets so the
+# build workflow can fetch them instead of re-downloading every restore image.
+# Each restore image gets its own archive (dependencies-YYYYMMDD-<image>.tar.xz)
+# to stay under GitHub's 2 GiB release-asset limit; an archive is only split
+# into .part-aa, .part-ab, ... if it still exceeds that limit.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: macos-14
+    timeout-minutes: 350
+    env:
+      VZ_BUILD_ROOT: ${{ github.workspace }}/build
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Report resources
+        run: |
+          set -euo pipefail
+          echo "===== CPU ====="
+          sysctl -n machdep.cpu.brand_string 2>/dev/null || true
+          sysctl hw.physicalcpu hw.logicalcpu 2>/dev/null || true
+          echo "===== Memory ====="
+          sysctl -n hw.memsize 2>/dev/null |
+            awk '{ printf "hw.memsize: %.1f GiB\n", $1 / 1073741824 }' || true
+          vm_stat 2>/dev/null | head -n 6 || true
+          echo "===== Disk ====="
+          df -h
+
+      - name: Install ipsw
+        run: |
+          set -euo pipefail
+          ver=3.1.717
+          curl -fsSL -o "$RUNNER_TEMP/ipsw.tar.gz" \
+            "https://github.com/blacktop/ipsw/releases/download/v${ver}/ipsw_${ver}_macOS_universal.tar.gz"
+          tar -xzf "$RUNNER_TEMP/ipsw.tar.gz" -C "$RUNNER_TEMP"
+          sudo install -m 755 "$RUNNER_TEMP/ipsw" /usr/local/bin/ipsw
+          ipsw version
+
+      - name: Extract inputs
+        run: |
+          set -euo pipefail
+          chmod +x VirtualMac/scripts/ci-extract-inputs.sh
+          VZ_IPSW_BIN="$(command -v ipsw)" \
+            VirtualMac/scripts/ci-extract-inputs.sh
+
+      - name: Package dependencies by restore image
+        run: |
+          set -euo pipefail
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          command -v xz >/dev/null 2>&1 || brew install xz
+
+          DATE="$(date -u +%Y%m%d)"
+          NAME="dependencies-$DATE"
+          echo "DEP_NAME=$NAME" >> "$GITHUB_ENV"
+          rm -f "$RUNNER_TEMP/$NAME"-*.tar.xz*
+
+          package_one() {
+            local dir="$1"
+            local label="$2"
+            local archive="$RUNNER_TEMP/$NAME-$label.tar.xz"
+            if [ ! -d "$dir" ]; then
+              echo "missing $dir" >&2
+              return 1
+            fi
+            echo "packing $dir -> $archive"
+            tar -C "$(dirname "$dir")" -cf - "$(basename "$dir")" \
+              | xz -T0 -6 > "$archive"
+            local size
+            size="$(stat -f %z "$archive")"
+            if [ "$size" -gt $((1900 * 1024 * 1024)) ]; then
+              echo "$label exceeds 2 GiB, splitting"
+              split -b 1900m "$archive" "$archive.part-"
+              rm -f "$archive"
+            fi
+          }
+
+          package_one "$VZ_BUILD_ROOT/inputs/macos"    "macos-13.2.1"
+          package_one "$VZ_BUILD_ROOT/inputs/macos11"  "macos-11.6"
+          package_one "$VZ_BUILD_ROOT/inputs/ipados14" "ipados-14.5"
+          ls -lh "$RUNNER_TEMP/$NAME"-* 2>/dev/null || true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          NAME="$DEP_NAME"
+          ASSETS=()
+          for f in "$RUNNER_TEMP/$NAME"-*.tar.xz "$RUNNER_TEMP/$NAME"-*.tar.xz.part-*; do
+            if [ -e "$f" ]; then
+              ASSETS+=("$f")
+            fi
+          done
+          if [ "${#ASSETS[@]}" -eq 0 ]; then
+            echo "no assets produced" >&2
+            exit 1
+          fi
+
+          NOTES="Build inputs grouped by restore image, published $(date -u +%Y-%m-%dT%H:%M:%SZ) from ${GITHUB_SHA}."
+          if gh release view "$NAME" >/dev/null 2>&1; then
+            gh release upload "$NAME" --clobber "${ASSETS[@]}"
+          else
+            gh release create "$NAME" --title "$NAME" --notes "$NOTES" "${ASSETS[@]}"
+          fi
+          echo "published $NAME with ${#ASSETS[@]} asset(s)"
