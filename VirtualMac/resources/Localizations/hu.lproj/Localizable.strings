@@ -54,6 +54,7 @@
 "Copy Library Path" = "Könyvtár elérési út másolása";
 "Copying Restore Image" = "Helyreállítási lemezkép másolása";
 "Could Not Copy IPSW" = "Az IPSW nem másolható";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "A visszaállítási lemezkép nem készíthető elő";
 "Could Not Rename Virtual Mac" = "A Virtuális Mac nem nevezhető át";
 "Could Not Save" = "Nem sikerült menteni";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "A diagnosztika nem exportálható";
 "Create Github Issue" = "Github-hibajegy létrehozása";
 "Create Virtual Mac" = "Virtuális Mac létrehozása";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "Egyéni";
 "Debug Logging" = "Hibakeresési naplózás";
 "Debug logging has been enabled for the next boot." = "A hibakeresési naplózás be lett kapcsolva a következő indításhoz.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "Módosítások elvetése";
 "Discard Changes?" = "Elveti a módosításokat?";
 "Disk Exceeds Available Storage" = "A lemez meghaladja a rendelkezésre álló tárhelyet";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "Kijelző";
 "Display Height" = "Kijelző magassága";
 "Display Resolution" = "Kijelző felbontása";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Az Xcode letöltése";
 "Downloading macOS" = "macOS letöltése";
 "Downloads" = "Letöltések";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "Adjon meg hat, kettősponttal elválasztott hexadecimális oktettet.";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "Kísérleti";
 "Export Diagnostics" = "Diagnosztika exportálása";
 "External Display" = "Külső kijelző";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "A telepítés előrehaladása változatlan maradhat, amíg a macOS előkészíti a következő telepítési szakaszt. Az iPhone ébren marad.";
 "Installed, but settings save failed: %@" = "Telepítve, de a beállítások mentése sikertelen: %@";
 "Installing macOS" = "macOS telepítése";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "Az iPad internetkapcsolata";
 "iPhone Internet Connection" = "Az iPhone internetkapcsolata";
 "Keep Downloading" = "Letöltés folytatása";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "Alverziók megjelenítése";
 "Show Version Details" = "Verzió részleteinek megjelenítése";
 "Show Virtual Mac Controls" = "Virtuális Mac vezérlőinek megjelenítése";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "Indítás";
 "Start %@" = "%@ indítása";
 "Start in Recovery" = "Indítás helyreállítási módban";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Váltás a Dopamine hivatalos verziójára";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "Váltson a futó virtuális Macre, és állítsa le, mielőtt másikat indít.";
 "The diagnostics archive could not be created." = "A diagnosztikai archívum nem hozható létre.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "Az első folyamatérték több percet is igénybe vehet, amíg a virtuális Mac DFU módból RestoreOS módba vált. Az iPad ébren marad.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "Az első folyamatérték több percet is igénybe vehet, amíg a virtuális Mac DFU módból RestoreOS módba vált. Az iPhone ébren marad.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "A hiányos virtuális Mac és a telepítési fájljai törlődnek.";

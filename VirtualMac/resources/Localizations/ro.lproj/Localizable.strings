@@ -54,6 +54,7 @@
 "Copy Library Path" = "Copiați calea bibliotecii";
 "Copying Restore Image" = "Se copiază imaginea de restaurare";
 "Could Not Copy IPSW" = "IPSW-ul nu a putut fi copiat";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "Imaginea de restaurare nu a putut fi pregătită";
 "Could Not Rename Virtual Mac" = "Mac-ul virtual nu a putut fi redenumit";
 "Could Not Save" = "Nu s-a putut salva";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "Nu s-au putut exporta datele de diagnosticare";
 "Create Github Issue" = "Creați o sesizare pe Github";
 "Create Virtual Mac" = "Creați un Mac virtual";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "Personalizzata";
 "Debug Logging" = "Jurnalizare pentru depanare";
 "Debug logging has been enabled for the next boot." = "Jurnalizarea pentru depanare a fost activată pentru următoarea pornire.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "Renunțați la modificări";
 "Discard Changes?" = "Renunțați la modificări?";
 "Disk Exceeds Available Storage" = "Discul depășește spațiul disponibil";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "Afișaj";
 "Display Height" = "Înălțime afișaj";
 "Display Resolution" = "Rezoluție afișaj";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Descărcați Xcode";
 "Downloading macOS" = "Se descarcă macOS";
 "Downloads" = "Descărcări";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "Introduceți sei ottetti esadecimali separati da due punti.";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "Experimental";
 "Export Diagnostics" = "Exportă datele de diagnosticare";
 "External Display" = "Ecran extern";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "Este posibil ca progresul instalării să rămână neschimbat în timp ce macOS pregătește etapa următoare. iPhone-ul va rămâne activ.";
 "Installed, but settings save failed: %@" = "Instalat, dar configurările nu au putut fi salvate: %@";
 "Installing macOS" = "Instalare di macOS";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "Conexiunea la internet a iPadului";
 "iPhone Internet Connection" = "Conexiunea la internet a iPhone-ului";
 "Keep Downloading" = "Continuați descărcarea";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "Afișați versiunile minore";
 "Show Version Details" = "Afișați detaliile versiunii";
 "Show Virtual Mac Controls" = "Afișați controlli di Mac virtual";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "Inizia";
 "Start %@" = "Porniți %@";
 "Start in Recovery" = "Porniți in Recupero";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Treceți la versiunea oficială de Dopamine";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "Passa al Mac virtual rulează e spegnilo prima di avviarne un altro.";
 "The diagnostics archive could not be created." = "Arhiva de diagnosticare nu a putut fi creată.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "Prima valoare a progresului poate apărea după câteva minute, în timp ce Mac-ul virtual trece din DFU în RestoreOS. iPad-ul va rămâne activ.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "Prima valoare a progresului poate apărea după câteva minute, în timp ce Mac-ul virtual trece din DFU în RestoreOS. iPhone-ul va rămâne activ.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "Mac-ul virtual incomplet și fișierele sale de instalare vor fi șterse.";

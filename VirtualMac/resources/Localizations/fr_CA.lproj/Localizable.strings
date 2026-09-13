@@ -54,6 +54,7 @@
 "Copy Library Path" = "Copier le chemin de la bibliothèque";
 "Copying Restore Image" = "Copie de l’image de restauration";
 "Could Not Copy IPSW" = "Impossible de copier l’IPSW";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "Impossible de préparer l’image de restauration";
 "Could Not Rename Virtual Mac" = "Impossible de renommer Mac virtuel";
 "Could Not Save" = "Impossible d’enregistrer";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "Impossible d’exporter les diagnostics";
 "Create Github Issue" = "Créer un signalement sur Github";
 "Create Virtual Mac" = "Créer un Mac virtuel";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "Personnalisé";
 "Debug Logging" = "Journalisation de débogage";
 "Debug logging has been enabled for the next boot." = "La journalisation de débogage a été activée pour le prochain démarrage.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "Ignorer les modifications";
 "Discard Changes?" = "Ignorer les modifications ?";
 "Disk Exceeds Available Storage" = "Le disque dépasse l’espace disponible";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "Affichage";
 "Display Height" = "Hauteur de l’écran";
 "Display Resolution" = "Résolution de l’écran";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Télécharger Xcode";
 "Downloading macOS" = "Téléchargement de macOS";
 "Downloads" = "Téléchargements";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "Saisissez six octets hexadécimaux séparés par des deux-points.";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "Expérimental";
 "Export Diagnostics" = "Exporter les diagnostics";
 "External Display" = "Écran externe";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "La progression de l’installation peut rester inchangée pendant que macOS prépare la prochaine étape. Votre iPhone restera actif.";
 "Installed, but settings save failed: %@" = "Installation terminée, mais échec de l’enregistrement des réglages : %@";
 "Installing macOS" = "Installation de macOS";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "Connexion Internet de l’iPad";
 "iPhone Internet Connection" = "Connexion Internet de l’iPhone";
 "Keep Downloading" = "Continuer le téléchargement";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "Afficher les versions intermédiaires";
 "Show Version Details" = "Afficher les détails de la version";
 "Show Virtual Mac Controls" = "Afficher les commandes de Virtual Mac";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "C'est parti";
 "Start %@" = "Démarrer %@";
 "Start in Recovery" = "Démarrer dans Récupération";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Passer à la version officielle de Dopamine";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "Passez au Mac virtuel en cours d’exécution et éteignez-le avant d’en démarrer un autre.";
 "The diagnostics archive could not be created." = "L’archive de diagnostics n’a pas pu être créée.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "La première valeur de progression peut prendre plusieurs minutes pendant le passage du Mac virtuel de DFU à RestoreOS. Votre iPad restera actif.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "La première valeur de progression peut prendre plusieurs minutes pendant le passage du Mac virtuel de DFU à RestoreOS. Votre iPhone restera actif.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "Le Mac virtuel incomplet et ses fichiers d’installation seront supprimés.";

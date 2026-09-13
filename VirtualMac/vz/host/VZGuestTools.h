@@ -19,4 +19,9 @@ BOOL VZGuestToolsConfigureBootArguments(id auxiliaryStorage,
                                         BOOL openGLAccelerationEnabled,
                                         NSError **error);
 
+// Records that a bundle's disk image was enlarged on the host. The guest agent
+// grows the APFS container to fill the new space on the next start and consumes
+// the marker. It is a no-op when the guest agent is unavailable.
+void VZGuestToolsRequestDiskExpansion(NSString *bundlePath);
+
 NS_ASSUME_NONNULL_END

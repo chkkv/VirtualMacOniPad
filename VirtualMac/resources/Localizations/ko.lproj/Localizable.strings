@@ -54,6 +54,7 @@
 "Copy Library Path" = "보관함 경로 복사";
 "Copying Restore Image" = "복원 이미지 복사 중";
 "Could Not Copy IPSW" = "IPSW를 복사할 수 없음";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "복원 이미지를 준비할 수 없음";
 "Could Not Rename Virtual Mac" = "가상 Mac의 이름을 변경할 수 없음";
 "Could Not Save" = "저장할 수 없음";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "진단을 내보낼 수 없음";
 "Create Github Issue" = "Github 문제 신고";
 "Create Virtual Mac" = "가상 Mac 생성";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "사용자 지정";
 "Debug Logging" = "디버그 기록";
 "Debug logging has been enabled for the next boot." = "다음 부팅에 디버그 로깅이 활성화되었습니다.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "변경사항 폐기";
 "Discard Changes?" = "변경사항을 폐기하시겠습니까?";
 "Disk Exceeds Available Storage" = "디스크가 사용 가능한 저장 공간을 초과함";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "디스플레이";
 "Display Height" = "디스플레이 높이";
 "Display Resolution" = "디스플레이 해상도";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Xcode 다운로드";
 "Downloading macOS" = "macOS 다운로드 중";
 "Downloads" = "다운로드";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "콜론으로 구분된 16진수 옥텟 6개를 입력하십시오.";
 "Ethernet (%@)" = "이더넷(%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "실험적";
 "Export Diagnostics" = "진단 정보 내보내기";
 "External Display" = "외장 디스플레이";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "macOS가 다음 설치 단계를 준비하는 동안 설치 진행률이 변하지 않을 수 있습니다. iPhone가 잠자기 상태로 전환되지 않습니다.";
 "Installed, but settings save failed: %@" = "설치되었지만 설정 저장 실패: %@";
 "Installing macOS" = "macOS 설치 중";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "iPad 인터넷 연결";
 "iPhone Internet Connection" = "iPhone 인터넷 연결";
 "Keep Downloading" = "계속 다운로드";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "마이너 릴리스 표시";
 "Show Version Details" = "버전 세부사항 표시";
 "Show Virtual Mac Controls" = "가상 Mac 제어기 표시";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "시작";
 "Start %@" = "%@ 시작";
 "Start in Recovery" = "복구 모드로 시작";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Dopamine 공식 버전으로 전환";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "실행 중인 가상 Mac으로 전환하여 종료한 후 다른 가상 Mac을 시작하십시오.";
 "The diagnostics archive could not be created." = "진단 아카이브를 생성할 수 없습니다.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "가상 Mac이 DFU에서 RestoreOS로 전환되는 동안 첫 진행률이 표시되기까지 몇 분이 걸릴 수 있습니다. iPad가 깨어 있습니다.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "가상 Mac이 DFU에서 RestoreOS로 전환되는 동안 첫 진행률이 표시되기까지 몇 분이 걸릴 수 있습니다. iPhone가 깨어 있습니다.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "완료되지 않은 가상 Mac과 설치 파일이 삭제됩니다.";

@@ -34,6 +34,11 @@ static BOOL gGuestMenuRestartedForToken;
 static uint64_t gGuestProvisioningGeneration;
 static NSUInteger gGuestConnectionCount;
 
+// Presence of this marker inside a bundle asks the guest agent to grow the
+// APFS container to the disk image's new size. It is written when the host
+// enlarges Disk.img and removed once the guest has expanded its container.
+static NSString * const VZDiskExpansionMarkerName = @"Disk.expand";
+
 static void VZGuestToolsProbeAgent(uint64_t generation, NSUInteger attempt);
 
 static void VZGuestToolsLog(NSString *format, ...)
@@ -501,6 +506,37 @@ static void VZGuestToolsActivate(BOOL payloadChanged, uint64_t generation,
         });
 }
 
+static void VZGuestToolsExpandDiskIfNeeded(void)
+{
+    if (!gGuestBundlePath.length) return;
+    NSString *marker = [gGuestBundlePath stringByAppendingPathComponent:
+        VZDiskExpansionMarkerName];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:marker]) return;
+    NSString *script =
+        @"set -e; "
+         "container=$(/usr/sbin/diskutil list disk0 2>/dev/null | "
+             "/usr/bin/awk '/APFS Container/ {print $NF; exit}'); "
+         "test -n \"$container\"; "
+         "/usr/sbin/diskutil repairDisk disk0 >/dev/null 2>&1 || true; "
+         "/usr/sbin/diskutil resizeContainer \"$container\" 0; "
+         "echo VIRTUAL_MAC_DISK_EXPANDED";
+    VZGuestToolsLog(@"expanding guest disk on request");
+    VZGuestToolsRun(@"/bin/sh", @[@"-c", script],
+        ^(BOOL success, NSData *output) {
+            NSString *text = [[[NSString alloc] initWithData:output
+                encoding:NSUTF8StringEncoding] autorelease];
+            text = [text stringByTrimmingCharactersInSet:
+                NSCharacterSet.whitespaceAndNewlineCharacterSet];
+            if (!success) {
+                VZGuestToolsLog(@"guest disk expansion failed: %@",
+                                text ?: @"unknown error");
+                return;
+            }
+            VZGuestToolsLog(@"guest disk expansion succeeded: %@", text);
+            [[NSFileManager defaultManager] removeItemAtPath:marker error:nil];
+        });
+}
+
 static void VZGuestToolsDiscoverGuestVersion(void (^completion)(void))
 {
     VZGuestToolsRun(@"/usr/bin/sw_vers", @[@"-productVersion"],
@@ -834,6 +870,7 @@ static void VZGuestToolsProbeAgent(uint64_t generation, NSUInteger attempt)
             gGuestProvisioningStarted = YES;
             VZGuestToolsLog(@"Apple guest agent ready");
             VZGuestToolsDiscoverGuestVersion(^{
+                VZGuestToolsExpandDiskIfNeeded();
                 VZGuestToolsProvisionDesktop(0);
             });
         }
@@ -844,6 +881,21 @@ static void VZGuestToolsProbeAgent(uint64_t generation, NSUInteger attempt)
         dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
             VZGuestToolsProbeAgent(generation, attempt + 1);
         });
+}
+
+void VZGuestToolsRequestDiskExpansion(NSString *bundlePath)
+{
+    if (!bundlePath.length) return;
+    NSString *marker = [bundlePath stringByAppendingPathComponent:
+        VZDiskExpansionMarkerName];
+    // The value is a timestamp so a repeated request refreshes a marker that a
+    // previous boot failed to consume instead of silently succeeding.
+    NSString *stamp = [NSString stringWithFormat:@"%.0f",
+        NSDate.date.timeIntervalSince1970];
+    NSError *error = nil;
+    if (![stamp writeToFile:marker atomically:YES
+                   encoding:NSUTF8StringEncoding error:&error])
+        VZGuestToolsLog(@"could not record disk expansion request: %@", error);
 }
 
 void VZGuestToolsStartProvisioning(NSString *bundlePath,

@@ -54,6 +54,7 @@
 "Copy Library Path" = "लाइब्रेरी पथ कॉपी करें";
 "Copying Restore Image" = "रीस्टोर इमेज कॉपी हो रही है";
 "Could Not Copy IPSW" = "IPSW कॉपी नहीं हो सका";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "रीस्टोर इमेज तैयार नहीं हो सकी";
 "Could Not Rename Virtual Mac" = "वर्चुअल Mac का नाम नहीं बदला जा सका";
 "Could Not Save" = "सेव नहीं हो सका";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "डायग्नोस्टिक्स एक्सपोर्ट नहीं हो सके";
 "Create Github Issue" = "Github पर समस्या बनाएं";
 "Create Virtual Mac" = "वर्चुअल Mac बनाएँ";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "कस्टम";
 "Debug Logging" = "डीबग लॉगिंग";
 "Debug logging has been enabled for the next boot." = "अगले बूट के लिए डीबग लॉगिंग चालू कर दी गई है।";
@@ -83,6 +85,7 @@
 "Discard Changes" = "बदलाव छोड़ें";
 "Discard Changes?" = "बदलाव छोड़ें?";
 "Disk Exceeds Available Storage" = "डिस्क उपलब्ध स्टोरेज से बड़ी है";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "डिस्प्ले";
 "Display Height" = "डिस्प्ले की ऊँचाई";
 "Display Resolution" = "डिस्प्ले रिज़ॉल्यूशन";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Xcode डाउनलोड करें";
 "Downloading macOS" = "macOS डाउनलोड हो रहा है";
 "Downloads" = "डाउनलोड";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "कोलन से अलग किए गए छह हेक्साडेसिमल ऑक्टेट दर्ज करें।";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "प्रायोगिक";
 "Export Diagnostics" = "निदान निर्यात करें";
 "External Display" = "बाहरी डिस्प्ले";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "जब macOS अगला इंस्टॉलेशन चरण तैयार करता है, तब इंस्टॉलेशन की प्रगति कुछ समय तक नहीं बदल सकती। आपका iPhone सक्रिय रहेगा।";
 "Installed, but settings save failed: %@" = "इंस्टॉल हो गया, लेकिन सेटिंग्स सेव नहीं हुईं: %@";
 "Installing macOS" = "macOS इंस्टॉल हो रहा है";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "iPad का इंटरनेट कनेक्शन";
 "iPhone Internet Connection" = "iPhone का इंटरनेट कनेक्शन";
 "Keep Downloading" = "डाउनलोड जारी रखें";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "माइनर रिलीज़ दिखाएँ";
 "Show Version Details" = "संस्करण विवरण दिखाएँ";
 "Show Virtual Mac Controls" = "वर्चुअल Mac कंट्रोल दिखाएँ";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "शुरू करें";
 "Start %@" = "%@ शुरू करें";
 "Start in Recovery" = "रिकवरी में शुरू करें";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Dopamine के आधिकारिक संस्करण पर जाएँ";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "किसी अन्य को शुरू करने से पहले चल रहे वर्चुअल Mac पर जाएँ और उसे बंद करें।";
 "The diagnostics archive could not be created." = "डायग्नोस्टिक्स आर्काइव नहीं बनाया जा सका।";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "वर्चुअल Mac के DFU से RestoreOS में बदलने के दौरान पहला प्रगति मान आने में कई मिनट लग सकते हैं। आपका iPad सक्रिय रहेगा।";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "वर्चुअल Mac के DFU से RestoreOS में बदलने के दौरान पहला प्रगति मान आने में कई मिनट लग सकते हैं। आपका iPhone सक्रिय रहेगा।";
 "The incomplete Virtual Mac and its installation files will be deleted." = "अधूरा वर्चुअल Mac और उसकी इंस्टॉलेशन फ़ाइलें हटा दी जाएँगी।";

@@ -54,6 +54,7 @@
 "Copy Library Path" = "Kopírovat cestu knihovny";
 "Copying Restore Image" = "Kopírování obrazu pro obnovení";
 "Could Not Copy IPSW" = "IPSW se nepodařilo zkopírovat";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "Obraz obnovení se nepodařilo připravit";
 "Could Not Rename Virtual Mac" = "Virtuální Mac se nepodařilo přejmenovat";
 "Could Not Save" = "Nepodařilo se uložit";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "Diagnostiku se nepodařilo exportovat";
 "Create Github Issue" = "Vytvořit problém na Githubu";
 "Create Virtual Mac" = "Vytvořit Virtuální Mac";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "Vlastní";
 "Debug Logging" = "Protokolování ladění";
 "Debug logging has been enabled for the next boot." = "Pro příští spuštění bylo zapnuto protokolování ladění.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "Zahodit změny";
 "Discard Changes?" = "Zahodit změny?";
 "Disk Exceeds Available Storage" = "Disk přesahuje dostupné úložiště";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "Displej";
 "Display Height" = "Výška displeje";
 "Display Resolution" = "Rozlišení displeje";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Stáhnout Xcode";
 "Downloading macOS" = "Stahování macOS";
 "Downloads" = "Stažené";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "Zadejte šest hexadecimálních oktetů oddělených dvojtečkami.";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "Experimentální";
 "Export Diagnostics" = "Exportovat diagnostiku";
 "External Display" = "Externí displej";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "Průběh instalace se nemusí měnit, zatímco macOS připravuje další fázi instalace. iPhone zůstane vzhůru.";
 "Installed, but settings save failed: %@" = "Nainstalováno, ale nastavení se nepodařilo uložit: %@";
 "Installing macOS" = "Instalace macOS";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "Internetové připojení iPadu";
 "iPhone Internet Connection" = "Internetové připojení iPhonu";
 "Keep Downloading" = "Pokračovat ve stahování";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "Zobrazit dílčí vydání";
 "Show Version Details" = "Zobrazit podrobnosti verze";
 "Show Virtual Mac Controls" = "Zobrazit ovládací prvky virtuálního Macu";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "Spustit";
 "Start %@" = "Spustit %@";
 "Start in Recovery" = "Spustit v zotavení";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Přejděte na oficiální verzi Dopamine";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "Před spuštěním jiného virtuálního Macu přepněte na ten spuštěný a vypněte ho.";
 "The diagnostics archive could not be created." = "Diagnostický archiv se nepodařilo vytvořit.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "První hodnota průběhu může trvat několik minut, zatímco virtuální Mac přechází z DFU do RestoreOS. iPad zůstane aktivní.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "První hodnota průběhu může trvat několik minut, zatímco virtuální Mac přechází z DFU do RestoreOS. iPhone zůstane aktivní.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "Nedokončený virtuální Mac a jeho instalační soubory budou smazány.";

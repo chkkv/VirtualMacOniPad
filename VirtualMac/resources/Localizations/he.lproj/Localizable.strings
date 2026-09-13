@@ -54,6 +54,7 @@
 "Copy Library Path" = "העתקת נתיב הספרייה";
 "Copying Restore Image" = "תמונת השחזור מועתקת";
 "Could Not Copy IPSW" = "לא ניתן היה להעתיק את ה‑IPSW";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "לא ניתן היה להכין את תמונת השחזור";
 "Could Not Rename Virtual Mac" = "לא ניתן היה לשנות את השם של Mac וירטואלי";
 "Could Not Save" = "לא ניתן היה לשמור";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "לא ניתן לייצא את נתוני האבחון";
 "Create Github Issue" = "יצירת דיווח ב-Github";
 "Create Virtual Mac" = "יצירת Mac וירטואלי";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "מותאם אישית";
 "Debug Logging" = "רישום ניפוי באגים";
 "Debug logging has been enabled for the next boot." = "רישום ניפוי השגיאות הופעל להפעלה הבאה.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "ביטול השינויים";
 "Discard Changes?" = "לבטל את השינויים?";
 "Disk Exceeds Available Storage" = "הכונן חורג מנפח האחסון הזמין";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "צג";
 "Display Height" = "גובה הצג";
 "Display Resolution" = "רזולוציית הצג";
@@ -96,8 +99,11 @@
 "Download Xcode" = "הורדת Xcode";
 "Downloading macOS" = "מתבצעת הורדה של macOS";
 "Downloads" = "הורדות";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "יש להזין שש קבוצות הקסדצימליות המופרדות בנקודתיים.";
 "Ethernet (%@)" = "Ethernet‏ (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "ניסיוני";
 "Export Diagnostics" = "ייצוא נתוני אבחון";
 "External Display" = "צג חיצוני";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "ייתכן שהתקדמות ההתקנה לא תשתנה בזמן ש-macOS מכין את שלב ההתקנה הבא. ה-iPhone יישאר פעיל.";
 "Installed, but settings save failed: %@" = "ההתקנה הושלמה, אך שמירת ההגדרות נכשלה: %@";
 "Installing macOS" = "macOS מותקן";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "חיבור האינטרנט של ה-iPad";
 "iPhone Internet Connection" = "חיבור האינטרנט של ה-iPhone";
 "Keep Downloading" = "המשך ההורדה";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "הצגת גרסאות משנה";
 "Show Version Details" = "הצגת פרטי הגרסה";
 "Show Virtual Mac Controls" = "הצגת פקדי Mac וירטואלי";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "הפעלה";
 "Start %@" = "הפעלת %@";
 "Start in Recovery" = "הפעלה במצב שחזור";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "מעבר לגרסה הרשמית של Dopamine";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "יש לעבור ל-Mac הווירטואלי שפועל ולכבות אותו לפני הפעלת אחד אחר.";
 "The diagnostics archive could not be created." = "לא ניתן ליצור את ארכיון האבחון.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "ערך ההתקדמות הראשון עשוי להופיע לאחר מספר דקות בזמן שה-Mac הווירטואלי עובר מ-DFU ל-RestoreOS. ה-iPad יישאר פעיל.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "ערך ההתקדמות הראשון עשוי להופיע לאחר מספר דקות בזמן שה-Mac הווירטואלי עובר מ-DFU ל-RestoreOS. ה-iPhone יישאר פעיל.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "ה-Mac הווירטואלי שלא הושלם וקובצי ההתקנה שלו יימחקו.";

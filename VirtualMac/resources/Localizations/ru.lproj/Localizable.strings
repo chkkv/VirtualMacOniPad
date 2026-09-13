@@ -54,6 +54,7 @@
 "Copy Library Path" = "Копировать путь к библиотеке";
 "Copying Restore Image" = "Копирование образа восстановления";
 "Could Not Copy IPSW" = "Не удалось скопировать IPSW";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "Не удалось подготовить образ восстановления";
 "Could Not Rename Virtual Mac" = "Не удалось переименовать Виртуальный Mac";
 "Could Not Save" = "Не удалось сохранить";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "Не удалось экспортировать диагностику";
 "Create Github Issue" = "Создать обращение на Github";
 "Create Virtual Mac" = "Создать Виртуальный Mac";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "Пользовательская";
 "Debug Logging" = "Ведение журнала отладки";
 "Debug logging has been enabled for the next boot." = "Журнал отладки включён для следующей загрузки.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "Отменить изменения";
 "Discard Changes?" = "Отменить изменения?";
 "Disk Exceeds Available Storage" = "Размер диска превышает доступное хранилище";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "Дисплей";
 "Display Height" = "Высота дисплея";
 "Display Resolution" = "Разрешение дисплея";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Скачать Xcode";
 "Downloading macOS" = "Загрузка macOS";
 "Downloads" = "Загрузки";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "Введите шесть шестнадцатеричных октетов, разделённых двоеточиями.";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "Экспериментально";
 "Export Diagnostics" = "Экспорт диагностики";
 "External Display" = "Внешний дисплей";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "Ход установки может не меняться, пока macOS подготавливает следующий этап. iPhone не перейдёт в режим сна.";
 "Installed, but settings save failed: %@" = "Установлено, но не удалось сохранить настройки: %@";
 "Installing macOS" = "Установка macOS";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "Интернет-подключение iPad";
 "iPhone Internet Connection" = "Интернет-подключение iPhone";
 "Keep Downloading" = "Продолжить загрузку";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "Показывать промежуточные выпуски";
 "Show Version Details" = "Показывать сведения о версии";
 "Show Virtual Mac Controls" = "Показать элементы управления виртуального Mac";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "Запуск";
 "Start %@" = "Запустить %@";
 "Start in Recovery" = "Запустить в режиме восстановления";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Перейти на официальную версию Dopamine";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "Перейдите к запущенному виртуальному Mac и выключите его перед запуском другого.";
 "The diagnostics archive could not be created." = "Не удалось создать архив диагностики.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "Первое значение хода выполнения может появиться через несколько минут, пока виртуальный Mac переходит из DFU в RestoreOS. iPad не перейдёт в режим сна.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "Первое значение хода выполнения может появиться через несколько минут, пока виртуальный Mac переходит из DFU в RestoreOS. iPhone не перейдёт в режим сна.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "Незавершённый виртуальный Mac и его установочные файлы будут удалены.";

@@ -54,6 +54,7 @@
 "Copy Library Path" = "Salin Jalur Perpustakaan";
 "Copying Restore Image" = "Menyalin Citra Pemulihan";
 "Could Not Copy IPSW" = "IPSW Tidak Dapat Disalin";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "Citra Pemulihan Tidak Dapat Disiapkan";
 "Could Not Rename Virtual Mac" = "Mac Virtual Tidak Dapat Diubah Namanya";
 "Could Not Save" = "Tidak Dapat Menyimpan";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "Tidak Dapat Mengekspor Diagnostik";
 "Create Github Issue" = "Buat laporan di Github";
 "Create Virtual Mac" = "Buat Mac Virtual";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "Khusus";
 "Debug Logging" = "Pencatatan debug";
 "Debug logging has been enabled for the next boot." = "Pencatatan debug telah dinyalakan untuk boot berikutnya.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "Buang Perubahan";
 "Discard Changes?" = "Buang Perubahan?";
 "Disk Exceeds Available Storage" = "Disk Melebihi Penyimpanan yang Tersedia";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "Layar";
 "Display Height" = "Tinggi Layar";
 "Display Resolution" = "Resolusi Layar";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Unduh Xcode";
 "Downloading macOS" = "Mengunduh macOS";
 "Downloads" = "Unduhan";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "Masukkan enam oktet heksadesimal yang dipisahkan dengan titik dua.";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "Eksperimental";
 "Export Diagnostics" = "Ekspor Diagnostik";
 "External Display" = "Layar Eksternal";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "Kemajuan instalasi mungkin tidak berubah saat macOS menyiapkan tahap instalasi berikutnya. iPhone Anda akan tetap aktif.";
 "Installed, but settings save failed: %@" = "Sudah diinstal, tetapi penyimpanan pengaturan gagal: %@";
 "Installing macOS" = "Menginstal macOS";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "Koneksi Internet iPad";
 "iPhone Internet Connection" = "Koneksi Internet iPhone";
 "Keep Downloading" = "Lanjutkan Mengunduh";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "Tampilkan Rilis Minor";
 "Show Version Details" = "Tampilkan Detail Versi";
 "Show Virtual Mac Controls" = "Tampilkan Kontrol Virtual Mac";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "Mulai";
 "Start %@" = "Mulai %@";
 "Start in Recovery" = "Mulai dalam Pemulihan";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Beralih ke versi resmi Dopamine";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "Beralihlah ke Virtual Mac yang berjalan dan matikan sebelum memulai yang lain.";
 "The diagnostics archive could not be created." = "Arsip diagnostik tidak dapat dibuat.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "Nilai progres pertama dapat memerlukan beberapa menit saat Virtual Mac beralih dari DFU ke RestoreOS. iPad Anda akan tetap aktif.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "Nilai progres pertama dapat memerlukan beberapa menit saat Virtual Mac beralih dari DFU ke RestoreOS. iPhone Anda akan tetap aktif.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "Virtual Mac yang belum selesai dan file instalasinya akan dihapus.";

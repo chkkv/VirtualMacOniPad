@@ -54,6 +54,7 @@
 "Copy Library Path" = "Kopiraj put biblioteke";
 "Copying Restore Image" = "Kopiranje slike za obnovu";
 "Could Not Copy IPSW" = "IPSW nije moguće kopirati";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "Sliku za obnovu nije moguće pripremiti";
 "Could Not Rename Virtual Mac" = "Virtualni Mac nije moguće preimenovati";
 "Could Not Save" = "Nije moguće spremiti";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "Nije moguće izvesti dijagnostiku";
 "Create Github Issue" = "Izradi prijavu na Githubu";
 "Create Virtual Mac" = "Izradi Virtualni Mac";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "Prilagođeno";
 "Debug Logging" = "Bilježenje za otklanjanje pogrešaka";
 "Debug logging has been enabled for the next boot." = "Bilježenje za otklanjanje grešaka uključeno je za sljedeće pokretanje.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "Odbaci promjene";
 "Discard Changes?" = "Odbaciti promjene?";
 "Disk Exceeds Available Storage" = "Disk premašuje dostupnu pohranu";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "Zaslon";
 "Display Height" = "Visina zaslona";
 "Display Resolution" = "Razlučivost zaslona";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Preuzmi Xcode";
 "Downloading macOS" = "Preuzimanje macOS-a";
 "Downloads" = "Preuzimanja";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "Unesite šest heksadecimalnih okteta odvojenih dvotočkama.";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "Eksperimentalno";
 "Export Diagnostics" = "Izvoz dijagnostike";
 "External Display" = "Vanjski zaslon";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "Napredak instalacije može ostati nepromijenjen dok macOS priprema sljedeću fazu instalacije. Vaš iPhone ostat će aktivan.";
 "Installed, but settings save failed: %@" = "Instalirano, ali spremanje postavki nije uspjelo: %@";
 "Installing macOS" = "Instaliranje macOS-a";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "Internetska veza iPada";
 "iPhone Internet Connection" = "Internetska veza iPhonea";
 "Keep Downloading" = "Nastavi preuzimati";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "Prikaži manja izdanja";
 "Show Version Details" = "Prikaži pojedinosti verzije";
 "Show Virtual Mac Controls" = "Prikaži kontrole Virtualnog Maca";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "Pokreni";
 "Start %@" = "Pokreni %@";
 "Start in Recovery" = "Pokreni u Oporavku";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Prijeđite na službenu verziju Dopaminea";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "Prijeđite na pokrenuti Virtualni Mac i isključite ga prije pokretanja drugoga.";
 "The diagnostics archive could not be created." = "Nije moguće izraditi dijagnostičku arhivu.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "Prva vrijednost napretka može potrajati nekoliko minuta dok Virtualni Mac prelazi iz DFU-a u RestoreOS. Vaš iPad ostat će aktivan.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "Prva vrijednost napretka može potrajati nekoliko minuta dok Virtualni Mac prelazi iz DFU-a u RestoreOS. Vaš iPhone ostat će aktivan.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "Nedovršeni Virtualni Mac i njegove instalacijske datoteke bit će izbrisani.";

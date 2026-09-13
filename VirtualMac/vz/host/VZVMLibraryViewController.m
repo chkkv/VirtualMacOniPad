@@ -6,17 +6,21 @@
 #import "VZRestoreCatalog.h"
 #import "VZLocalization.h"
 #import "VZSupport.h"
+#import "VZGuestTools.h"
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 #include <ifaddrs.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <net/if.h>
 #include <limits.h>
 #include <spawn.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 extern char **environ;
 
@@ -189,6 +193,64 @@ static uint64_t VZVMStorageCapacity(NSString *bundlePath,
             @"Disk.img"] error:nil];
     uint64_t capacity = [attributes[NSFileSize] unsignedLongLongValue];
     return capacity ?: [options[VZStorageSizeKey] unsignedLongLongValue];
+}
+
+// Grows a Virtual Mac's sparse Disk.img in place. The VMM reads the backing
+// file's logical size when it starts, so this must only run while the machine
+// is shut down. The guest's APFS container is grown later by the guest agent,
+// which is why the request is recorded in the bundle for the next boot.
+static BOOL VZExpandDiskImage(NSString *bundlePath, uint64_t newSize,
+                              NSError **error)
+{
+    if (!bundlePath.length) {
+        if (error) *error = [NSError errorWithDomain:@"VirtualMac"
+            code:1 userInfo:@{NSLocalizedDescriptionKey:
+            @"The Virtual Mac disk could not be located."}];
+        return NO;
+    }
+    if (newSize > (uint64_t)LLONG_MAX) {
+        if (error) *error = [NSError errorWithDomain:@"VirtualMac"
+            code:2 userInfo:@{NSLocalizedDescriptionKey:
+            @"The requested disk size is too large."}];
+        return NO;
+    }
+    NSString *path = [bundlePath stringByAppendingPathComponent:@"Disk.img"];
+    int descriptor = open(path.fileSystemRepresentation,
+                          O_RDWR | O_CLOEXEC);
+    if (descriptor < 0) {
+        if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain
+            code:errno userInfo:nil];
+        return NO;
+    }
+    struct stat info;
+    if (fstat(descriptor, &info) != 0) {
+        int savedError = errno;
+        close(descriptor);
+        if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain
+            code:savedError userInfo:nil];
+        return NO;
+    }
+    if (newSize <= (uint64_t)info.st_size) {
+        close(descriptor);
+        if (error) *error = [NSError errorWithDomain:@"VirtualMac"
+            code:3 userInfo:@{NSLocalizedDescriptionKey:
+            @"The new size must be larger than the current disk size."}];
+        return NO;
+    }
+    // ftruncate only extends the logical length; the added range stays sparse
+    // and consumes no physical storage until the guest writes to it.
+    if (ftruncate(descriptor, (off_t)newSize) != 0 || fsync(descriptor) != 0) {
+        int savedError = errno;
+        close(descriptor);
+        if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain
+            code:savedError userInfo:nil];
+        return NO;
+    }
+    close(descriptor);
+    // Queue the guest-side partition growth for the next start. Failure here
+    // still leaves a valid (if unpartitioned) larger host image.
+    VZGuestToolsRequestDiskExpansion(bundlePath);
+    return YES;
 }
 
 static NSString *VZMACStringFromBytes(const uint8_t bytes[6])
@@ -835,7 +897,9 @@ void VZRemovePaths(NSArray<NSString *> *paths)
  numberOfRowsInSection:(NSInteger)section
 {
     if (section == 0)
-        return 1 + (self.bundlePath ? 2 : 3);
+        // Name, Processors, Memory, and either Storage (new) or Expand
+        // Storage (existing).
+        return 4;
     if (section == 1)
         return 1 + [self.options[VZSharedDirectoriesKey] count];
     if (section == 2)
@@ -868,6 +932,8 @@ void VZRemovePaths(NSArray<NSString *> *paths)
     (void)tableView;
     if (section == 0 && !self.bundlePath)
         return VZL(@"Storage size can’t be changed later. If you need additional storage in the future, set a larger size now.");
+    if (section == 0 && self.bundlePath)
+        return VZL(@"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.");
     return nil;
 }
 
@@ -902,15 +968,30 @@ void VZRemovePaths(NSArray<NSString *> *paths)
             return cell;
         }
         NSInteger resourceIndex = indexPath.row - 1;
-        NSArray *names = self.bundlePath ? @[VZL(@"Processors"), VZL(@"Memory")]
-                                         : @[VZL(@"Processors"), VZL(@"Memory"), VZL(@"Storage")];
-        NSString *key = @[VZCPUCountKey, VZMemorySizeKey,
-                           VZStorageSizeKey][resourceIndex];
+        NSArray *names = self.bundlePath
+            ? @[VZL(@"Processors"), VZL(@"Memory"), VZL(@"Expand Storage")]
+            : @[VZL(@"Processors"), VZL(@"Memory"), VZL(@"Storage")];
         cell.textLabel.text = names[resourceIndex];
-        uint64_t value = [self.options[key] unsignedLongLongValue];
-        cell.detailTextLabel.text = resourceIndex == 0
-            ? [NSString stringWithFormat:@"%llu", value]
-            : [NSString stringWithFormat:@"%llu GB", value >> 30];
+        if (resourceIndex == 0) {
+            cell.detailTextLabel.text = [NSString stringWithFormat:@"%llu",
+                [self.options[VZCPUCountKey] unsignedLongLongValue]];
+        } else if (resourceIndex == 1) {
+            cell.detailTextLabel.text = [NSString stringWithFormat:@"%llu GB",
+                [self.options[VZMemorySizeKey] unsignedLongLongValue] >> 30];
+        } else if (self.bundlePath) {
+            // Report the capacity the VMM will actually see, not the saved
+            // option, so the value tracks the backing file after a resize.
+            cell.detailTextLabel.text = [NSString stringWithFormat:@"%llu GB",
+                VZVMStorageCapacity(self.bundlePath, self.options) >> 30];
+            if (self.running) {
+                cell.accessoryType = UITableViewCellAccessoryNone;
+                cell.selectionStyle = UITableViewCellSelectionStyleNone;
+                cell.textLabel.textColor = UIColor.secondaryLabelColor;
+            }
+        } else {
+            cell.detailTextLabel.text = [NSString stringWithFormat:@"%llu GB",
+                [self.options[VZStorageSizeKey] unsignedLongLongValue] >> 30];
+        }
     } else if (indexPath.section == 1) {
         if (indexPath.row == 0) {
             cell.textLabel.text = VZL(@"Add Shared Folder");
@@ -1222,6 +1303,89 @@ void VZRemovePaths(NSArray<NSString *> *paths)
     }];
 }
 
+- (void)expandStorage
+{
+    if (!self.bundlePath.length)
+        return;
+    if (self.running) {
+        UIAlertController *alert = [UIAlertController
+            alertControllerWithTitle:VZL(@"Shut Down First")
+                             message:VZL(@"Shut down this Virtual Mac before expanding its disk.")
+                      preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:VZL(@"OK")
+            style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+    uint64_t current = VZVMStorageCapacity(self.bundlePath, self.options);
+    uint64_t currentGiB = current >> 30;
+    uint64_t availableGiB = VZAvailableStorageSize() >> 30;
+    NSString *message = [NSString stringWithFormat:
+        VZL(@"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it."),
+        currentGiB, availableGiB];
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:VZL(@"Expand Storage")
+                         message:message
+                  preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
+        field.text = [NSString stringWithFormat:@"%llu", currentGiB + 16];
+        field.keyboardType = UIKeyboardTypeNumberPad;
+    }];
+    [alert addAction:[UIAlertAction actionWithTitle:VZL(@"Cancel")
+        style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:VZL(@"Expand")
+        style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        (void)action;
+        [self performStorageExpansionToGiB:alert.textFields.firstObject.text];
+    }]];
+    [self presentViewController:alert animated:YES completion:^{
+        UITextField *field = alert.textFields.firstObject;
+        [field selectAll:nil];
+        [field becomeFirstResponder];
+    }];
+}
+
+- (void)performStorageExpansionToGiB:(NSString *)text
+{
+    uint64_t current = VZVMStorageCapacity(self.bundlePath, self.options);
+    uint64_t entered = strtoull(text.UTF8String, NULL, 10);
+    uint64_t maximumGiB = (uint64_t)LLONG_MAX >> 30;
+    uint64_t newSize = entered > maximumGiB ? (uint64_t)LLONG_MAX
+                                            : GiB(entered);
+    if (newSize <= current) {
+        UIAlertController *alert = [UIAlertController
+            alertControllerWithTitle:VZL(@"Invalid Size")
+                message:[NSString stringWithFormat:
+                    VZL(@"Enter a size larger than the current %llu GB."),
+                    current >> 30]
+                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:VZL(@"OK")
+            style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+    NSError *error = nil;
+    if (!VZExpandDiskImage(self.bundlePath, newSize, &error)) {
+        VZPresentFailureReport(self, VZL(@"Could Not Expand Disk"),
+            error.localizedDescription, error.debugDescription,
+            VZFailureSupportOptionNone);
+        return;
+    }
+    // Keep the saved option in sync so future starts and diagnostics report
+    // the new capacity even if the guest agent has not run yet.
+    self.options[VZStorageSizeKey] = @(newSize);
+    [self.tableView reloadData];
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:VZL(@"Disk Expanded")
+            message:[NSString stringWithFormat:
+                VZL(@"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts."),
+                newSize >> 30]
+            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:VZL(@"OK")
+        style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
 - (void)editVMName
 {
     if (self.running)
@@ -1302,8 +1466,11 @@ void VZRemovePaths(NSArray<NSString *> *paths)
             [self editNumberForKey:VZMemorySizeKey title:VZL(@"Memory")
                               min:GiB(2) max:VZDeviceMemoryLimit() bytes:YES];
         } else if (resourceIndex == 2) {
-            [self editNumberForKey:VZStorageSizeKey title:VZL(@"Storage")
-                              min:GiB(32) max:0 bytes:YES];
+            if (self.bundlePath)
+                [self expandStorage];
+            else
+                [self editNumberForKey:VZStorageSizeKey title:VZL(@"Storage")
+                                  min:GiB(32) max:0 bytes:YES];
         }
     } else if (indexPath.section == 1) {
         if (indexPath.row == 0) {

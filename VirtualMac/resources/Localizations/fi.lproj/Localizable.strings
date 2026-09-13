@@ -54,6 +54,7 @@
 "Copy Library Path" = "Kopioi kirjastopolku";
 "Copying Restore Image" = "Palautuskuvaa kopioidaan";
 "Could Not Copy IPSW" = "IPSW:tä ei voitu kopioida";
+"Could Not Expand Disk" = "Could Not Expand Disk";
 "Could Not Prepare Restore Image" = "Palautuslevykuvaa ei voitu valmistella";
 "Could Not Rename Virtual Mac" = "Virtuaalisen Macin nimeä ei voitu muuttaa";
 "Could Not Save" = "Tallennus ei onnistunut";
@@ -61,6 +62,7 @@
 "Couldn’t Export Diagnostics" = "Diagnostiikkaa ei voitu viedä";
 "Create Github Issue" = "Luo ilmoitus Githubiin";
 "Create Virtual Mac" = "Luo virtuaalinen Mac";
+"Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it." = "Current size: %llu GB. Enter a larger size. About %llu GB is free; the extra space is only used as the guest writes to it.";
 "Custom" = "Mukautettu";
 "Debug Logging" = "Virheenkorjausloki";
 "Debug logging has been enabled for the next boot." = "Virheenkorjausloki otettiin käyttöön seuraavaa käynnistystä varten.";
@@ -83,6 +85,7 @@
 "Discard Changes" = "Hylkää muutokset";
 "Discard Changes?" = "Hylätäänkö muutokset?";
 "Disk Exceeds Available Storage" = "Levy ylittää käytettävissä olevan tallennustilan";
+"Disk Expanded" = "Disk Expanded";
 "Display" = "Näyttö";
 "Display Height" = "Näytön korkeus";
 "Display Resolution" = "Näytön tarkkuus";
@@ -96,8 +99,11 @@
 "Download Xcode" = "Lataa Xcode";
 "Downloading macOS" = "Ladataan macOS:ää";
 "Downloads" = "Lataukset";
+"Enter a size larger than the current %llu GB." = "Enter a size larger than the current %llu GB.";
 "Enter six hexadecimal octets separated by colons." = "Syötä kuusi kaksoispistein erotettua heksadesimaalioktettia.";
 "Ethernet (%@)" = "Ethernet (%@)";
+"Expand" = "Expand";
+"Expand Storage" = "Expand Storage";
 "Experimental" = "Kokeellinen";
 "Export Diagnostics" = "Vie diagnostiikka";
 "External Display" = "Ulkoinen näyttö";
@@ -130,6 +136,7 @@
 "Installation progress may remain unchanged while macOS prepares the next installation stage. Your iPhone will remain awake." = "Asennuksen eteneminen voi pysyä muuttumattomana, kun macOS valmistelee seuraavaa asennusvaihetta. iPhone pysyy hereillä.";
 "Installed, but settings save failed: %@" = "Asennettu, mutta asetuksia ei voitu tallentaa: %@";
 "Installing macOS" = "macOS:ää asennetaan";
+"Invalid Size" = "Invalid Size";
 "iPad Internet Connection" = "iPadin internet-yhteys";
 "iPhone Internet Connection" = "iPhonen internet-yhteys";
 "Keep Downloading" = "Jatka lataamista";
@@ -223,6 +230,8 @@
 "Show Minor Releases" = "Näytä osajulkaisut";
 "Show Version Details" = "Näytä version tiedot";
 "Show Virtual Mac Controls" = "Näytä virtuaalisen Macin säätimet";
+"Shut Down First" = "Shut Down First";
+"Shut down this Virtual Mac before expanding its disk." = "Shut down this Virtual Mac before expanding its disk.";
 "Start" = "Aloita";
 "Start %@" = "Käynnistä %@";
 "Start in Recovery" = "Käynnistä palautustilassa";
@@ -248,6 +257,8 @@
 "Switch to the Official Version of Dopamine" = "Vaihda Dopaminen viralliseen versioon";
 "Switch to the running Virtual Mac and shut it down before starting another one." = "Vaihda käynnissä olevaan virtuaaliseen Maciin ja sammuta se ennen toisen käynnistämistä.";
 "The diagnostics archive could not be created." = "Diagnostiikka-arkistoa ei voitu luoda.";
+"The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts." = "The disk can be expanded while the Virtual Mac is shut down. macOS grows its partition the next time it starts.";
+"The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts." = "The disk is now %llu GB. macOS grows its partition the next time this Virtual Mac starts.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPad will remain awake." = "Ensimmäinen edistymisarvo voi kestää useita minuutteja virtuaalisen Macin siirtyessä DFU:sta RestoreOS:ään. iPad pysyy hereillä.";
 "The first progress value can take several minutes while the Virtual Mac changes from DFU to RestoreOS. Your iPhone will remain awake." = "Ensimmäinen edistymisarvo voi kestää useita minuutteja virtuaalisen Macin siirtyessä DFU:sta RestoreOS:ään. iPhone pysyy hereillä.";
 "The incomplete Virtual Mac and its installation files will be deleted." = "Keskeneräinen virtuaalinen Mac ja sen asennustiedostot poistetaan.";
