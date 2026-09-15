@@ -1,0 +1,223 @@
+name: Extract VMM Symbols
+
+# Downloads the published dependencies, locates the extracted Virtualization
+# VMM (and the framework binary when present), and dumps their symbol tables so
+# the host audio/capture APIs the guest backend imports (AudioQueue vs
+# AudioUnit, etc.) can be identified without running a full build.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dependencies_tag:
+        description: "Release tag to use (blank = latest dependencies-*)"
+        required: false
+        default: ""
+      binary_path:
+        description: "Optional extra binary path inside the unpacked inputs"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      VZ_BUILD_ROOT: ${{ github.workspace }}/build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve dependencies release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REQUESTED="${{ inputs.dependencies_tag }}"
+          if [ -n "$REQUESTED" ]; then
+            TAG="$REQUESTED"
+          else
+            TAG="$(gh release list --limit 100 --json tagName,createdAt \
+              -q '[.[] | select(.tagName | startswith("dependencies-"))] | sort_by(.createdAt) | reverse | .[0].tagName')"
+          fi
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "no dependencies release found" >&2
+            exit 1
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "using dependencies release: $TAG"
+
+      - name: Download dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/deps" "$VZ_BUILD_ROOT/inputs"
+          # Only the macOS 13.2.1 archive holds Virtualization.framework; skip
+          # the multi-gigabyte macOS 11 and iPadOS archives to stay well inside
+          # the runner's disk budget.
+          gh release download "$TAG" --pattern '*macos-13.2.1*' \
+            -D "$RUNNER_TEMP/deps"
+          ls -lh "$RUNNER_TEMP/deps"
+
+      - name: Unpack the Virtualization framework
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/deps"
+
+          # Reassemble any archive that was split into .part-* assets.
+          : > "$RUNNER_TEMP/bases.txt"
+          for part in *.tar.xz.part-*; do
+            if [ -e "$part" ]; then
+              printf '%s\n' "${part%.part-*}" >> "$RUNNER_TEMP/bases.txt"
+            fi
+          done
+          if [ -s "$RUNNER_TEMP/bases.txt" ]; then
+            sort -u "$RUNNER_TEMP/bases.txt" | while IFS= read -r base; do
+              echo "merging $base"
+              cat "$base".part-* > "$base"
+              rm -f "$base".part-*
+            done
+          fi
+
+          archive="$(ls *.tar.xz | head -1)"
+          echo "top-level entries in $archive:"
+          tar -tf "$archive" | head -20
+          echo "extracting $archive"
+          tar -xf "$archive" -C "$VZ_BUILD_ROOT/inputs"
+          rm -f "$RUNNER_TEMP"/deps/*.tar.xz "$RUNNER_TEMP"/deps/*.part-*
+          # Free the multi-gigabyte dyld shared cache; the symbol dump only
+          # needs the extracted framework executables.
+          find "$VZ_BUILD_ROOT/inputs" -type f -name 'dyld_shared_cache*' -delete
+          df -h
+          du -sh "$VZ_BUILD_ROOT/inputs"
+
+      - name: Locate binaries
+        run: |
+          set -euo pipefail
+          TARGETS="$VZ_BUILD_ROOT/targets"
+          mkdir -p "$TARGETS"
+          copy_first() {
+            local name="$1"
+            shift
+            local found
+            found="$(find "$VZ_BUILD_ROOT/inputs" -type f \( "$@" \) \
+              | head -1 || true)"
+            if [ -n "$found" ]; then
+              cp "$found" "$TARGETS/$name"
+              echo "$TARGETS/$name"
+            fi
+          }
+          VMM="$(copy_first VMM -name 'com.apple.Virtualization.VirtualMachine')"
+          VZFW="$(copy_first VirtualizationFramework \
+            -path '*Virtualization.framework/Versions/A/Virtualization')"
+          EXTRA=""
+          if [ -n "${{ inputs.binary_path }}" ] &&
+             [ -f "$VZ_BUILD_ROOT/inputs/${{ inputs.binary_path }}" ]; then
+            EXTRA="$TARGETS/Extra"
+            cp "$VZ_BUILD_ROOT/inputs/${{ inputs.binary_path }}" "$EXTRA"
+          fi
+          # The extracted system tree can be many gigabytes; keep only the
+          # binaries we need so the symbol dump cannot exhaust the runner disk.
+          rm -rf "$VZ_BUILD_ROOT/inputs" "$RUNNER_TEMP/deps"
+          echo "VMM=$VMM" >> "$GITHUB_ENV"
+          echo "VZFW=$VZFW" >> "$GITHUB_ENV"
+          echo "EXTRA=$EXTRA" >> "$GITHUB_ENV"
+          echo "found VMM=$VMM"
+          echo "found VZFW=$VZFW"
+          echo "found EXTRA=$EXTRA"
+          df -h
+
+      - name: Dump symbols
+        run: |
+          set -euo pipefail
+          OUT="$VZ_BUILD_ROOT/symbols"
+          mkdir -p "$OUT"
+          IMPORT_CHECKS=(
+            _AudioQueueNewOutput
+            _AudioQueueNewInput
+            _AudioQueueAllocateBuffer
+            _AudioQueueEnqueueBuffer
+            _AudioQueueStart
+            _AudioQueueStop
+            _AudioQueueDispose
+            _AudioUnitInitialize
+            _AudioOutputUnitStart
+            _AudioComponentFindNext
+            _AudioConverterNew
+            _AudioDeviceCreateIOProcID
+            _AudioObjectGetPropertyData
+            _AVCaptureDevice
+          )
+          for spec in "VMM:$VMM" "VirtualizationFramework:$VZFW" "Extra:$EXTRA"; do
+            name="${spec%%:*}"
+            bin="${spec#*:}"
+            if [ -z "$bin" ] || [ ! -f "$bin" ]; then
+              echo "skip $name (missing)"
+              continue
+            fi
+            echo "===== $name: $bin ====="
+            file "$bin"
+            echo "size: $(stat -f %z "$bin") bytes"
+            echo "archs: $(lipo -archs "$bin" 2>/dev/null || echo unknown)"
+
+            otool -L "$bin" > "$OUT/$name-otool-L.txt" 2>&1 || true
+            nm -a "$bin" > "$OUT/$name-nm-all.txt" 2>&1 || true
+            nm -m -u "$bin" > "$OUT/$name-nm-undefined.txt" 2>&1 || true
+            if command -v dyld_info >/dev/null 2>&1; then
+              dyld_info -imports "$bin" > "$OUT/$name-dyld-imports.txt" 2>&1 || true
+            fi
+            strings "$bin" \
+              | grep -iE 'AudioQueue|AudioUnit|AUGraph|AudioConverter|AudioDevice|AudioObject|kAudio|AUHAL|AVCapture|AVAudio|CoreAudio' \
+              | sort -u > "$OUT/$name-strings-audio.txt" 2>/dev/null || true
+            grep -iE 'AudioQueue|AudioUnit|AudioConverter|AudioObject|AVCapture|kAudioUnit' \
+              "$OUT/$name-nm-undefined.txt" \
+              | sort -u > "$OUT/$name-symbols-audio.txt" 2>/dev/null || true
+
+            : > "$OUT/$name-import-checks.txt"
+            for sym in "${IMPORT_CHECKS[@]}"; do
+              if grep -q "[[:space:]]$sym[[:space:]]" \
+                  "$OUT/$name-nm-undefined.txt" 2>/dev/null; then
+                echo "IMPORTED  $sym" >> "$OUT/$name-import-checks.txt"
+              else
+                echo "absent    $sym" >> "$OUT/$name-import-checks.txt"
+              fi
+            done
+            echo "----- import checks ($name) -----"
+            cat "$OUT/$name-import-checks.txt"
+            echo "----- audio symbols ($name) -----"
+            cat "$OUT/$name-symbols-audio.txt" || true
+            echo "----- audio strings ($name) -----"
+            cat "$OUT/$name-strings-audio.txt" || true
+          done
+
+          echo "===== symbol files ====="
+          ls -lh "$OUT"
+          # Build the summary outside $OUT first: the glob below would otherwise
+          # pick up the summary file itself and cat it into its own stream.
+          SUMMARY="$RUNNER_TEMP/vmm-symbols-summary.md"
+          {
+            echo "# VMM / framework symbol dump"
+            echo
+            echo "- dependencies tag: ${TAG}"
+            echo "- commit: ${GITHUB_SHA}"
+            echo
+            for f in "$OUT"/*; do
+              echo "## $(basename "$f")"
+              echo '```'
+              cat "$f"
+              echo '```'
+              echo
+            done
+          } > "$SUMMARY"
+          mv "$SUMMARY" "$OUT/summary.md"
+
+      - name: Upload symbol dump
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmm-symbols
+          path: build/symbols
+          retention-days: 14
+          if-no-files-found: error
