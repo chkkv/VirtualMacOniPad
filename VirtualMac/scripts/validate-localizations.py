@@ -40,6 +40,7 @@ TECHNICAL_IDENTICAL_VALUES = {
     "Mac Trackpad",
     "NAT: Share %@",
     "PCM Hook",
+    "PCM Input",
     "PCM Virtual Audio",
     "Start %@",
     "USB Keyboard",

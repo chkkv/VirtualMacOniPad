@@ -26,6 +26,7 @@ NSString * const VZHUDOpacityKey = @"HUDOpacity";
 NSString * const VZBluetoothAudioRoutingKey = @"BluetoothAudioRouting";
 NSString * const VZPCMHookKey = @"PCMHook";
 NSString * const VZPCMVirtualAudioKey = @"PCMVirtualAudio";
+NSString * const VZPCMInputKey = @"PCMInput";
 NSString * const VZDebugHUDKey = @"DebugHUD";
 NSString * const VZDebugLoggingKey = @"DebugLogging";
 NSString * const VZDebugLoggingModeOff = @"off";
@@ -113,6 +114,7 @@ BOOL VZIsRootHideEnvironment(void)
         VZBluetoothAudioRoutingKey: @NO,
         VZPCMHookKey: @NO,
         VZPCMVirtualAudioKey: @YES,
+        VZPCMInputKey: @NO,
         VZDebugHUDKey: @YES,
         VZDebugLoggingKey: VZDebugLoggingModeOff,
     };

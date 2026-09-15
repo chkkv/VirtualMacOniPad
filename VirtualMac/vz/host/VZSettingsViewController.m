@@ -235,7 +235,7 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
     (void)tableView;
     return section == 0 ? 4 : section == 1 ? 6 : section == 2 ? 4 :
         section == 3 ? 4 : section == 4 ? 3 : section == 5 ? 2 :
-        section == 6 ? 1 : section == 7 ? 4 : 3;
+        section == 6 ? 1 : section == 7 ? 4 : 4;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section
@@ -494,11 +494,12 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     } else if (indexPath.section == 8) {
         NSArray *titles = @[VZL(@"BluetoothAudioRouting"), VZL(@"PCM Hook"),
-                            VZL(@"PCM Virtual Audio")];
+                            VZL(@"PCM Input"), VZL(@"PCM Virtual Audio")];
         NSArray *keys = @[VZBluetoothAudioRoutingKey, VZPCMHookKey,
-                          VZPCMVirtualAudioKey];
+                          VZPCMInputKey, VZPCMVirtualAudioKey];
         NSArray *actions = @[@"allowBluetoothToggleChanged:",
                              @"pcmHookToggleChanged:",
+                             @"pcmInputToggleChanged:",
                              @"pcmVirtualAudioToggleChanged:"];
         cell.textLabel.text = titles[indexPath.row];
         UISwitch *toggle = [[[UISwitch alloc] init] autorelease];
@@ -592,6 +593,11 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
 - (void)pcmHookToggleChanged:(UISwitch *)sender
 {
     [VZAppSettings.sharedSettings setBool:sender.on forKey:VZPCMHookKey];
+}
+
+- (void)pcmInputToggleChanged:(UISwitch *)sender
+{
+    [VZAppSettings.sharedSettings setBool:sender.on forKey:VZPCMInputKey];
 }
 
 - (void)pcmVirtualAudioToggleChanged:(UISwitch *)sender

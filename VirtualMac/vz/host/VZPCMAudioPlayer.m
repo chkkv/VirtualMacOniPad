@@ -30,6 +30,25 @@ static NSError *VZPCMError(NSInteger code, NSString *message)
         userInfo:@{NSLocalizedDescriptionKey: message}];
 }
 
+// When the PCM input bridge is active the app must hold a recording-capable
+// session; switching back to playback here would tear the capture engine down
+// on every activation. The flag is exported by the app before the VMM starts.
+static AVAudioSessionCategory VZPCMPlayerSessionCategory(void)
+{
+    const char *input = getenv("VZ_ALLOW_PCM_INPUT");
+    return (input && input[0] == '1' && input[1] == '\0')
+        ? AVAudioSessionCategoryPlayAndRecord
+        : AVAudioSessionCategoryPlayback;
+}
+
+static AVAudioSessionCategoryOptions VZPCMPlayerSessionOptions(void)
+{
+    return VZPCMPlayerSessionCategory() == AVAudioSessionCategoryPlayAndRecord
+        ? (AVAudioSessionCategoryOptionMixWithOthers |
+           AVAudioSessionCategoryOptionDefaultToSpeaker)
+        : 0;
+}
+
 // Append-only diagnostic log, matching the other /tmp diag logs' fopen/fchmod
 // form. Called on every produce and consume so the file shows the live PCM
 // backlog and drift correction alongside the rest of the device logs.
@@ -683,9 +702,13 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
     if (self.socketPath.length)
         unlink(self.socketPath.fileSystemRepresentation);
 
-    [AVAudioSession.sharedInstance setActive:NO
-        withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
-        error:nil];
+    // Do not deactivate the shared session while the PCM input bridge still
+    // owns a capture engine; deactivating here would silence the microphone.
+    if (VZPCMPlayerSessionCategory() == AVAudioSessionCategoryPlayback) {
+        [AVAudioSession.sharedInstance setActive:NO
+            withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+            error:nil];
+    }
 }
 
 #pragma mark - Socket IO (ioQueue)
@@ -935,8 +958,9 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
 
     NSError *error = nil;
     AVAudioSession *session = AVAudioSession.sharedInstance;
-    [session setCategory:AVAudioSessionCategoryPlayback
-                    mode:AVAudioSessionModeDefault options:0 error:&error];
+    [session setCategory:VZPCMPlayerSessionCategory()
+                    mode:AVAudioSessionModeDefault
+                 options:VZPCMPlayerSessionOptions() error:&error];
     [session setPreferredSampleRate:setup->sample_rate error:&error];
     // A short hardware IO buffer keeps the render thread responsive, which is
     // the main latency lever on local outputs; iPadOS enlarges it as needed
@@ -1089,8 +1113,9 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
 
     AVAudioSession *session = AVAudioSession.sharedInstance;
     NSError *error = nil;
-    [session setCategory:AVAudioSessionCategoryPlayback
-                    mode:AVAudioSessionModeDefault options:0 error:&error];
+    [session setCategory:VZPCMPlayerSessionCategory()
+                    mode:AVAudioSessionModeDefault
+                 options:VZPCMPlayerSessionOptions() error:&error];
     [session setActive:YES error:&error];
 
     // The new route may need a different amount of slack (speaker vs A2DP).

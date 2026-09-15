@@ -12,6 +12,10 @@
 #include <stdint.h>
 
 #define VZ_PCM_DEFAULT_SOCKET "/tmp/vz-pcm.sock"
+// Input runs on its own socket, mirroring the output one but with the roles
+// reversed: the app listens, the VMM connects, the VMM first sends SETUP_IN
+// with the capture format it needs, then the app streams AUDIO_IN frames.
+#define VZ_PCM_DEFAULT_INPUT_SOCKET "/tmp/vz-pcm-in.sock"
 #define VZ_PCM_MAGIC 0x565a5043U
 #define VZ_PCM_VERSION 1U
 #define VZ_PCM_MAX_PAYLOAD (1U << 20)
@@ -19,6 +23,11 @@
 enum vz_pcm_message_type {
     VZ_PCM_MESSAGE_SETUP = 1,
     VZ_PCM_MESSAGE_AUDIO = 2,
+    // VMM -> app: the AudioQueue input format the guest backend wants. The app
+    // configures its capture and replies with AUDIO_IN frames in this format.
+    VZ_PCM_MESSAGE_SETUP_IN = 3,
+    // App -> VMM: raw captured PCM in the format announced by SETUP_IN.
+    VZ_PCM_MESSAGE_AUDIO_IN = 4,
 };
 
 struct vz_pcm_header {

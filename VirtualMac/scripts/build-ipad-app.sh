@@ -28,6 +28,7 @@ done
 need_file "$VZ_REPO_ROOT/vz/host/NSViewShim.m"
 need_file "$VZ_REPO_ROOT/vz/host/VZAppSettings.m"
 need_file "$VZ_REPO_ROOT/vz/host/VZPCMAudioPlayer.m"
+need_file "$VZ_REPO_ROOT/vz/host/VZPCMAudioCapture.m"
 need_file "$VZ_REPO_ROOT/vz/host/vz_pcm_bridge.h"
 need_file "$VZ_REPO_ROOT/vz/host/VZDiagnostics.m"
 need_file "$VZ_REPO_ROOT/vz/host/VZFailureDetailsViewController.m"
@@ -124,6 +125,7 @@ xcrun --sdk iphoneos clang \
     "$VZ_REPO_ROOT/vz/host/VZSettingsViewController.m" \
     "$VZ_REPO_ROOT/vz/host/VZTrackpadScrollBridge.m" \
     "$VZ_REPO_ROOT/vz/host/VZPCMAudioPlayer.m" \
+    "$VZ_REPO_ROOT/vz/host/VZPCMAudioCapture.m" \
     "$VZ_REPO_ROOT/vz/host/VZVMLibraryViewController.m" \
     "$VZ_REPO_ROOT/vz/host/VirtualMacApp.m" \
     -o "$BIN"

@@ -18,6 +18,7 @@
 #import "VZGuestRuntimePolicy.h"
 #import "VZTrackpadScrollBridge.h"
 #import "VZPCMAudioPlayer.h"
+#import "VZPCMAudioCapture.h"
 #include <dlfcn.h>
 #include <objc/runtime.h>
 #include <objc/message.h>
@@ -85,6 +86,7 @@ static void setVMJetsamProtection(BOOL active)
 static id gVirtualMachine;
 static id gVirtualMachineDelegate;
 static VZPCMAudioPlayer *gPCMPlayer;
+static VZPCMAudioCapture *gPCMCapture;
 static UILabel *gDebugHUDLabel;
 static NSTimer *gDebugHUDTimer;
 
@@ -4207,6 +4209,11 @@ static void VZWriteInstallationAttempt(NSString *attemptPath, NSString *state,
         [gPCMPlayer release];
         gPCMPlayer = nil;
     }
+    if (gPCMCapture) {
+        [gPCMCapture stop];
+        [gPCMCapture release];
+        gPCMCapture = nil;
+    }
     gVideoMemoryAlertPresented = NO;
     gVirtualMachineDelegate = nil;
     gKeyboard = nil;
@@ -4635,11 +4642,11 @@ static void configureAudio(id configuration, NSDictionary *options) {
     // stream attachments. Use the same path for playback and microphone input.
     BOOL outputEnabled = [options[@"AudioOutputEnabled"] boolValue];
     BOOL inputEnabled = [options[@"AudioInputEnabled"] boolValue];
-    // PCM Hook temporarily drops the legacy input path: the app no longer
-    // requests microphone access, so expose only the output stream that feeds
-    // the PCM bridge.
+    // PCM Hook replaces the legacy output path. The virtio input stream is
+    // still needed so the guest enumerates a microphone, but its samples come
+    // from the app through the PCM input bridge instead of VZHostAudioInputStreamSource.
     if ([VZAppSettings.sharedSettings boolForKey:VZPCMHookKey])
-        inputEnabled = NO;
+        inputEnabled = [VZAppSettings.sharedSettings boolForKey:VZPCMInputKey];
     if (!outputEnabled && !inputEnabled) {
         printf("[VirtualMac] audio disabled by VM configuration\n");
         return;
@@ -4731,8 +4738,10 @@ static void requestMicrophoneAccess(dispatch_block_t continuation) {
     // PCM Hook abandons the legacy capture/output path: guest audio is routed
     // to VZPCMAudioPlayer with a Playback session. Do not activate or claim
     // the microphone here, otherwise the app would still take over audio at
-    // launch even though no input stream is used.
-    if ([VZAppSettings.sharedSettings boolForKey:VZPCMHookKey]) {
+    // launch even though no input stream is used. PCM Input still needs the
+    // microphone, so only skip when input is off.
+    if ([VZAppSettings.sharedSettings boolForKey:VZPCMHookKey] &&
+        ![VZAppSettings.sharedSettings boolForKey:VZPCMInputKey]) {
         printf("[VirtualMac] PCM hook enabled; skipping audio session capture\n");
         continuation();
         return;
@@ -5328,6 +5337,38 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
     if (!pcmHook) {
         setenv("VZ_ALLOW_PCM_HOOK", "0", 1);
         unsetenv("VZ_PCM_SOCKET");
+    }
+
+    // PCM Input: host the microphone socket and hand its path to the VMM. The
+    // VMM's AudioQueue input hook asks for a capture format, and this app
+    // streams microphone audio in that format through the standard AVFoundation
+    // capture stack. Only meaningful together with the PCM output hook.
+    if (gPCMCapture) {
+        [gPCMCapture stop];
+        [gPCMCapture release];
+        gPCMCapture = nil;
+    }
+    BOOL pcmInput = pcmHook &&
+        [VZAppSettings.sharedSettings boolForKey:VZPCMInputKey];
+    if (pcmInput) {
+        NSString *inputPath = VZPCMAudioCapture.defaultSocketPath;
+        gPCMCapture = [[VZPCMAudioCapture alloc]
+            initWithSocketPath:inputPath];
+        NSError *captureError = nil;
+        if ([gPCMCapture startWithError:&captureError]) {
+            setenv("VZ_ALLOW_PCM_INPUT", "1", 1);
+            setenv("VZ_PCM_INPUT_SOCKET", inputPath.UTF8String, 1);
+        } else {
+            printf("[VirtualMac] PCM input start failed: %s\n",
+                   captureError.localizedDescription.UTF8String);
+            [gPCMCapture release];
+            gPCMCapture = nil;
+            pcmInput = NO;
+        }
+    }
+    if (!pcmInput) {
+        setenv("VZ_ALLOW_PCM_INPUT", "0", 1);
+        unsetenv("VZ_PCM_INPUT_SOCKET");
     }
 
     setStatus(VZL(@"Loading extracted Apple virtualization frameworks…"));

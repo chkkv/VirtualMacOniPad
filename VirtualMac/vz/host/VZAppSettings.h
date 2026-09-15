@@ -28,6 +28,7 @@ FOUNDATION_EXPORT NSString * const VZHUDOpacityKey;
 FOUNDATION_EXPORT NSString * const VZBluetoothAudioRoutingKey;
 FOUNDATION_EXPORT NSString * const VZPCMHookKey;
 FOUNDATION_EXPORT NSString * const VZPCMVirtualAudioKey;
+FOUNDATION_EXPORT NSString * const VZPCMInputKey;
 FOUNDATION_EXPORT NSString * const VZDebugHUDKey;
 FOUNDATION_EXPORT NSString * const VZDebugLoggingKey;
 FOUNDATION_EXPORT NSString * const VZDebugLoggingModeOff;
