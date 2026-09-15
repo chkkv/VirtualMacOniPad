@@ -98,6 +98,7 @@
 "Download Xcode" = "Last ned Xcode";
 "Downloading macOS" = "Laster ned macOS";
 "Downloads" = "Nedlastinger";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "Skriv inn seks heksadesimale oktetter atskilt med kolon.";
 "Ethernet (%@)" = "Ethernet (%@)";
 "Experimental" = "Eksperimentell";
@@ -178,6 +179,8 @@
 "Optional" = "Valgfritt";
 "Options" = "Valg";
 "Out of Video Memory" = "Tomt for videominne";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "I mer enn et tiår har folk drømt om å kjøre macOS på iPad. I dag blir drømmen virkelighet. Opprett en virtuell Mac for å komme i gang.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "I mer enn et tiår har folk drømt om å ta med seg macOS overalt. I dag blir den drømmen virkelighet. Opprett en virtuell Mac for å komme i gang.";
 "Pixels Per Inch" = "Piksler per tomme";

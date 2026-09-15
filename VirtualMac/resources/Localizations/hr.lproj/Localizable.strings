@@ -98,6 +98,7 @@
 "Download Xcode" = "Preuzmi Xcode";
 "Downloading macOS" = "Preuzimanje macOS-a";
 "Downloads" = "Preuzimanja";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "Unesite šest heksadecimalnih okteta odvojenih dvotočkama.";
 "Ethernet (%@)" = "Ethernet (%@)";
 "Experimental" = "Eksperimentalno";
@@ -178,6 +179,8 @@
 "Optional" = "Neobavezno";
 "Options" = "Opcije";
 "Out of Video Memory" = "Nema videomemorije";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Ljudi više od desetljeća sanjaju o pokretanju sustava macOS na iPadu. Danas taj san postaje stvarnost. Za početak izradite virtualni Mac.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Ljudi već više od desetljeća sanjaju o tome da macOS ponesu kamo god krenu. Danas taj san postaje stvarnost. Za početak izradite virtualni Mac.";
 "Pixels Per Inch" = "Pikseli po inču";

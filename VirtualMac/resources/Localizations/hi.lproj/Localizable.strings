@@ -98,6 +98,7 @@
 "Download Xcode" = "Xcode डाउनलोड करें";
 "Downloading macOS" = "macOS डाउनलोड हो रहा है";
 "Downloads" = "डाउनलोड";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "कोलन से अलग किए गए छह हेक्साडेसिमल ऑक्टेट दर्ज करें।";
 "Ethernet (%@)" = "Ethernet (%@)";
 "Experimental" = "प्रायोगिक";
@@ -178,6 +179,8 @@
 "Optional" = "वैकल्पिक";
 "Options" = "विकल्प";
 "Out of Video Memory" = "वीडियो मेमोरी समाप्त";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "लोग एक दशक से भी अधिक समय से iPad पर macOS चलाने का सपना देखते आए हैं। आज वह सपना सच हो रहा है। शुरू करने के लिए वर्चुअल Mac बनाएँ।";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "एक दशक से भी अधिक समय से लोग macOS को हर जगह अपने साथ ले जाने का सपना देखते आए हैं। आज वह सपना सच हो रहा है। शुरू करने के लिए एक वर्चुअल Mac बनाएँ।";
 "Pixels Per Inch" = "प्रति इंच पिक्सेल";

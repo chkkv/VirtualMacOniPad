@@ -98,6 +98,7 @@
 "Download Xcode" = "Tải về Xcode";
 "Downloading macOS" = "Đang tải về macOS";
 "Downloads" = "Bản tải về";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "Nhập sáu octet thập lục phân, phân tách bằng dấu hai chấm.";
 "Ethernet (%@)" = "Ethernet (%@)";
 "Experimental" = "Thử nghiệm";
@@ -178,6 +179,8 @@
 "Optional" = "Không bắt buộc";
 "Options" = "Tùy chọn";
 "Out of Video Memory" = "Đã hết bộ nhớ video";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Trong hơn một thập kỷ, mọi người đã mơ ước chạy macOS trên iPad. Hôm nay, giấc mơ đó đã thành hiện thực. Hãy tạo một Máy Mac ảo để bắt đầu.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Trong hơn một thập kỷ, mọi người đã mơ ước có thể mang macOS theo mình đến bất cứ đâu. Hôm nay, giấc mơ đó trở thành hiện thực. Hãy tạo một máy Mac ảo để bắt đầu.";
 "Pixels Per Inch" = "Pixel trên mỗi inch";

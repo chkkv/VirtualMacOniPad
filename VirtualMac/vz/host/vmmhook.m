@@ -40,6 +40,7 @@
 #include <unistd.h>
 
 #include "usb_restore_bridge.h"
+#include "vz_pcm_bridge.h"
 
 typedef void *xo_t; // xpc_object_t / xpc_connection_t (opaque pointers)
 extern void  xpc_main(void (*handler)(xo_t));
@@ -1098,6 +1099,612 @@ __attribute__((used)) static struct {
     (const void *)&vmm_IOSurfaceCreate,
     (const void *)&IOSurfaceCreate,
 };
+
+// --- PCM Hook: forward VzCore's AudioQueue output to the app ----------------
+//
+// Route A: keep the real AudioQueue so its HAL clock keeps pulling buffers
+// from the guest backend, intercept every enqueue, forward the raw PCM to the
+// app's AF_UNIX socket, then zero the buffer so the legacy path stays silent.
+// The app owns playback through the standard AVFoundation stack.
+typedef int32_t vz_os_status;
+typedef struct OpaqueAudioQueue *vz_audio_queue_ref;
+typedef struct {
+    double mSampleRate;
+    uint32_t mFormatID;
+    uint32_t mFormatFlags;
+    uint32_t mBytesPerPacket;
+    uint32_t mFramesPerPacket;
+    uint32_t mBytesPerFrame;
+    uint32_t mChannelsPerFrame;
+    uint32_t mBitsPerChannel;
+    uint32_t mReserved;
+} vz_asbd;
+typedef struct {
+    uint32_t mAudioDataBytesCapacity;
+    void *mAudioData;
+    uint32_t mAudioDataByteSize;
+    void *mUserData;
+    uint32_t mPacketDescriptionCapacity;
+    void *mPacketDescriptions;
+    uint32_t mPacketDescriptionCount;
+} vz_audio_queue_buffer;
+typedef vz_audio_queue_buffer *vz_audio_queue_buffer_ref;
+typedef void (*vz_audio_queue_output_callback)(void *, vz_audio_queue_ref,
+                                                vz_audio_queue_buffer_ref);
+
+extern vz_os_status AudioQueueNewOutput(const vz_asbd *,
+    vz_audio_queue_output_callback, void *, CFRunLoopRef, CFStringRef,
+    uint32_t, vz_audio_queue_ref *);
+extern vz_os_status AudioQueueAllocateBuffer(vz_audio_queue_ref, uint32_t,
+    vz_audio_queue_buffer_ref *);
+extern vz_os_status AudioQueueFreeBuffer(vz_audio_queue_ref,
+    vz_audio_queue_buffer_ref);
+extern vz_os_status AudioQueueEnqueueBuffer(vz_audio_queue_ref,
+    vz_audio_queue_buffer_ref, uint32_t, const void *);
+extern vz_os_status AudioQueueStart(vz_audio_queue_ref, const void *);
+extern vz_os_status AudioQueueStop(vz_audio_queue_ref, uint8_t);
+extern vz_os_status AudioQueuePause(vz_audio_queue_ref);
+extern vz_os_status AudioQueueDispose(vz_audio_queue_ref, uint8_t);
+
+// Route B replaces the real AudioQueue with a clock we drive ourselves. This
+// bypasses ClientAudioQueue entirely, so the native 4096-frame block layout
+// (which traps when its capacity is changed) never applies. `VZ_PCM_VIRTUAL_AQ=0`
+// forces the proven route A.
+typedef struct vz_vaq_buffer {
+    vz_audio_queue_buffer pub;
+    uint32_t frames;
+    int in_use;
+    int queued;
+} vz_vaq_buffer;
+
+#define VZ_VAQ_MAGIC 0x565a4151u
+#define VZ_VAQ_MAX_BUFFERS 32
+
+typedef struct vz_vaq {
+    uint32_t magic;
+    vz_asbd format;
+    vz_audio_queue_output_callback callback;
+    void *user_data;
+    int running;
+    int paused;
+    int disposed;
+    int thread_started;
+    pthread_t thread;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+    vz_vaq_buffer buffers[VZ_VAQ_MAX_BUFFERS];
+    vz_vaq_buffer *queue[VZ_VAQ_MAX_BUFFERS];
+    int qhead;
+    int qtail;
+    int qcount;
+} vz_vaq;
+
+static bool pcm_hook_enabled;
+static int pcm_socket_fd = -1;
+static bool pcm_setup_sent;
+static struct vz_pcm_setup pcm_stream_format;
+static uint64_t pcm_dropped_frames;
+static pthread_mutex_t pcm_lock = PTHREAD_MUTEX_INITIALIZER;
+static uint8_t pcm_frame_buffer[sizeof(struct vz_pcm_header) + 65536];
+static uint64_t pcm_blocks_sent;
+static uint64_t pcm_bytes_sent;
+static bool pcm_virtual_enabled;
+static uint32_t pcm_vaq_target_frames = 1024u;
+static vz_vaq *g_active_vaq;
+static vz_vaq *g_vaqs[8];
+static int g_vaq_count;
+static pthread_mutex_t g_vaq_registry_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void pcm_attempt_connect_locked(void) {
+    if (!pcm_hook_enabled || pcm_socket_fd >= 0)
+        return;
+    const char *path = getenv("VZ_PCM_SOCKET");
+    if (!path || !path[0])
+        return;
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0)
+        return;
+    struct sockaddr_un address;
+    memset(&address, 0, sizeof(address));
+    address.sun_family = AF_UNIX;
+    snprintf(address.sun_path, sizeof(address.sun_path), "%s", path);
+    if (connect(fd, (struct sockaddr *)&address, sizeof(address)) != 0) {
+        close(fd);
+        return;
+    }
+    // Blocking writes with a large send buffer. Each audio chunk is ~8 KiB,
+    // which is near the AF_UNIX default; a non-blocking partial write used to
+    // be treated as fatal and caused a reconnect storm.
+    int sndbuf = 256 * 1024;
+    setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
+    pcm_socket_fd = fd;
+    pcm_setup_sent = false;
+    logf_("[vmmhook] pcm hook connected %s", path);
+}
+
+static void pcm_send_frame_locked(uint16_t type, const void *payload,
+                                  uint32_t length) {
+    int fd = pcm_socket_fd;
+    if (fd < 0)
+        return;
+    if (length > 65536)
+        length = 65536;
+    struct vz_pcm_header header;
+    header.magic = VZ_PCM_MAGIC;
+    header.version = VZ_PCM_VERSION;
+    header.type = type;
+    header.payload_length = length;
+    memcpy(pcm_frame_buffer, &header, sizeof(header));
+    if (length && payload)
+        memcpy(pcm_frame_buffer + sizeof(header), payload, length);
+    size_t total = sizeof(header) + length;
+    size_t sent = 0;
+    while (sent < total) {
+        ssize_t written = write(fd, pcm_frame_buffer + sent, total - sent);
+        if (written > 0) {
+            sent += (size_t)written;
+            continue;
+        }
+        if (written < 0 && errno == EINTR)
+            continue;
+        close(fd);
+        pcm_socket_fd = -1;
+        pcm_setup_sent = false;
+        __atomic_add_fetch(&pcm_dropped_frames, 1, __ATOMIC_RELAXED);
+        return;
+    }
+}
+
+static void pcm_publish_format_locked(const vz_asbd *inFormat) {
+    pcm_stream_format.sample_rate = inFormat->mSampleRate;
+    pcm_stream_format.format_id = inFormat->mFormatID;
+    pcm_stream_format.format_flags = inFormat->mFormatFlags;
+    pcm_stream_format.bytes_per_packet = inFormat->mBytesPerPacket;
+    pcm_stream_format.frames_per_packet = inFormat->mFramesPerPacket;
+    pcm_stream_format.bytes_per_frame = inFormat->mBytesPerFrame;
+    pcm_stream_format.channels_per_frame = inFormat->mChannelsPerFrame;
+    pcm_stream_format.bits_per_channel = inFormat->mBitsPerChannel;
+    pcm_attempt_connect_locked();
+    if (pcm_socket_fd >= 0 && !pcm_setup_sent) {
+        pcm_send_frame_locked(VZ_PCM_MESSAGE_SETUP, &pcm_stream_format,
+                              (uint32_t)sizeof(pcm_stream_format));
+        pcm_setup_sent = true;
+        logf_("[vmmhook] pcm hook setup %.0f Hz %u ch flags=0x%x "
+              "bytes/frame=%u",
+              pcm_stream_format.sample_rate,
+              pcm_stream_format.channels_per_frame,
+              pcm_stream_format.format_flags,
+              pcm_stream_format.bytes_per_frame);
+    }
+}
+
+static void pcm_send_audio_locked(const void *data, uint32_t length) {
+    if (pcm_socket_fd < 0)
+        pcm_attempt_connect_locked();
+    if (pcm_socket_fd < 0)
+        return;
+    // A reconnect (or a SETUP that raced ahead of the socket) must replay the
+    // stream format before any audio. Without this the app never configures its
+    // player and silently drops every block after the first disconnect.
+    if (!pcm_setup_sent && pcm_stream_format.sample_rate > 0.0) {
+        pcm_send_frame_locked(VZ_PCM_MESSAGE_SETUP, &pcm_stream_format,
+                              (uint32_t)sizeof(pcm_stream_format));
+        pcm_setup_sent = true;
+    }
+    if (!data || length == 0)
+        return;
+    pcm_send_frame_locked(VZ_PCM_MESSAGE_AUDIO, data, length);
+    uint64_t block = __atomic_add_fetch(&pcm_blocks_sent, 1,
+                                        __ATOMIC_RELAXED);
+    __atomic_add_fetch(&pcm_bytes_sent, length, __ATOMIC_RELAXED);
+    if (block <= 12 || (block & 0xFF) == 0) {
+        uint32_t bytesPerFrame = pcm_stream_format.bytes_per_frame;
+        logf_("[vmmhook] pcm block #%llu bytes=%u frames=%u",
+              (unsigned long long)block, length,
+              bytesPerFrame ? length / bytesPerFrame : 0);
+    }
+}
+
+// --- Route B: a self-clocked virtual AudioQueue -----------------------------
+static uint64_t vz_vaq_now_us(void) {
+    static mach_timebase_info_data_t timebase;
+    if (timebase.denom == 0)
+        mach_timebase_info(&timebase);
+    return mach_absolute_time() * timebase.numer / timebase.denom / 1000;
+}
+
+// Wakes in small slices to notice `disposed` promptly so the driver can exit
+// and free itself after a dispose, while still pacing against an absolute time
+// so per-block callback/send overhead cannot accumulate.
+static void vz_vaq_sleep_interruptible(vz_vaq *q, uint64_t target) {
+    while (1) {
+        pthread_mutex_lock(&q->lock);
+        int stop = q->disposed;
+        pthread_mutex_unlock(&q->lock);
+        if (stop)
+            return;
+        uint64_t now = vz_vaq_now_us();
+        if (now >= target)
+            return;
+        uint64_t delta = target - now;
+        if (delta > 10000)
+            delta = 10000;
+        usleep((useconds_t)delta);
+    }
+}
+
+static vz_os_status vz_vaq_allocate(vz_vaq *q, uint32_t byteSize,
+                                    vz_audio_queue_buffer_ref *outBuffer) {
+    if (!outBuffer)
+        return -1;
+    // NOTE: VzCore asserts a fixed 4096-frame output block inside its own
+    // audio callback (EXC_BREAKPOINT at +0x17E5C4), independent of the
+    // AudioQueue implementation. Preserve the native capacity; low latency is
+    // obtained by splitting the block in vz_vaq_thread instead.
+    pthread_mutex_lock(&q->lock);
+    vz_vaq_buffer *slot = NULL;
+    for (int i = 0; i < VZ_VAQ_MAX_BUFFERS; i++) {
+        if (!q->buffers[i].in_use) {
+            slot = &q->buffers[i];
+            break;
+        }
+    }
+    if (!slot) {
+        pthread_mutex_unlock(&q->lock);
+        return -1;
+    }
+    memset(slot, 0, sizeof(*slot));
+    slot->in_use = 1;
+    slot->pub.mAudioDataBytesCapacity = byteSize;
+    slot->pub.mAudioData = malloc(byteSize);
+    if (!slot->pub.mAudioData) {
+        slot->in_use = 0;
+        pthread_mutex_unlock(&q->lock);
+        return -1;
+    }
+    *outBuffer = &slot->pub;
+    pthread_mutex_unlock(&q->lock);
+    return 0;
+}
+
+static vz_os_status vz_vaq_enqueue(vz_vaq *q,
+                                   vz_audio_queue_buffer_ref inBuffer) {
+    if (!inBuffer)
+        return -1;
+    vz_vaq_buffer *slot = (vz_vaq_buffer *)inBuffer;
+    pthread_mutex_lock(&q->lock);
+    uint32_t bytesPerFrame = q->format.mBytesPerFrame;
+    if (!bytesPerFrame)
+        bytesPerFrame = 8;
+    slot->frames = inBuffer->mAudioDataByteSize / bytesPerFrame;
+    slot->queued = 1;
+    if (q->qcount < VZ_VAQ_MAX_BUFFERS) {
+        q->queue[q->qtail] = slot;
+        q->qtail = (q->qtail + 1) % VZ_VAQ_MAX_BUFFERS;
+        q->qcount++;
+    }
+    pthread_cond_broadcast(&q->cond);
+    pthread_mutex_unlock(&q->lock);
+    return 0;
+}
+
+static vz_os_status vz_vaq_free_buffer(vz_vaq *q,
+                                       vz_audio_queue_buffer_ref inBuffer) {
+    if (!inBuffer)
+        return -1;
+    vz_vaq_buffer *slot = (vz_vaq_buffer *)inBuffer;
+    pthread_mutex_lock(&q->lock);
+    if (slot->pub.mAudioData)
+        free(slot->pub.mAudioData);
+    memset(slot, 0, sizeof(*slot));
+    pthread_mutex_unlock(&q->lock);
+    return 0;
+}
+
+static void *vz_vaq_thread(void *arg) {
+    vz_vaq *q = arg;
+    uint64_t timeline_us = 0;
+    int timeline_init = 0;
+    while (1) {
+        pthread_mutex_lock(&q->lock);
+        while (!q->disposed && (!q->running || q->paused))
+            pthread_cond_wait(&q->cond, &q->lock);
+        if (q->disposed) {
+            pthread_mutex_unlock(&q->lock);
+            break;
+        }
+        vz_vaq_buffer *slot = NULL;
+        if (q->qcount > 0) {
+            slot = q->queue[q->qhead];
+            q->qhead = (q->qhead + 1) % VZ_VAQ_MAX_BUFFERS;
+            q->qcount--;
+        }
+        if (!slot) {
+            pthread_cond_wait(&q->cond, &q->lock);
+            pthread_mutex_unlock(&q->lock);
+            continue;
+        }
+        slot->queued = 0;
+        static int vz_vaq_trace;
+        if (vz_vaq_trace < 40) {
+            logf_("[vmmhook] vaq take queued=%d bytes=%u",
+                  q->qcount, slot->pub.mAudioDataByteSize);
+            vz_vaq_trace++;
+        }
+        void *data = slot->pub.mAudioData;
+        uint32_t bytes = slot->pub.mAudioDataByteSize;
+        double rate = q->format.mSampleRate;
+        uint32_t bytesPerFrame = q->format.mBytesPerFrame;
+        if (!bytesPerFrame)
+            bytesPerFrame = 8;
+        pthread_mutex_unlock(&q->lock);
+
+        // Send the whole VzCore block as a single socket frame, then pace the
+        // next block against an absolute timeline so the send rate stays real
+        // time.
+        pthread_mutex_lock(&pcm_lock);
+        pcm_send_audio_locked(data, bytes);
+        pthread_mutex_unlock(&pcm_lock);
+
+        if (q->callback)
+            q->callback(q->user_data, (vz_audio_queue_ref)q, &slot->pub);
+
+        uint32_t blockFrames = bytesPerFrame ? bytes / bytesPerFrame : 0;
+        if (!timeline_init) {
+            timeline_us = vz_vaq_now_us();
+            timeline_init = 1;
+        }
+        timeline_us += rate > 1.0
+            ? (uint64_t)((double)blockFrames / rate * 1e6) : 0;
+        vz_vaq_sleep_interruptible(q, timeline_us);
+    }
+    // Disposed: this detached driver owns the cleanup.
+    for (int i = 0; i < VZ_VAQ_MAX_BUFFERS; i++) {
+        if (q->buffers[i].in_use && q->buffers[i].pub.mAudioData)
+            free(q->buffers[i].pub.mAudioData);
+    }
+    pthread_mutex_destroy(&q->lock);
+    pthread_cond_destroy(&q->cond);
+    free(q);
+    return NULL;
+}
+
+static vz_os_status vz_vaq_start(vz_vaq *q) {
+    pthread_mutex_lock(&q->lock);
+    q->running = 1;
+    q->paused = 0;
+    logf_("[vmmhook] vaq start queued=%d", q->qcount);
+    if (!q->thread_started) {
+        q->thread_started = 1;
+        pthread_create(&q->thread, NULL, vz_vaq_thread, q);
+    }
+    pthread_cond_broadcast(&q->cond);
+    pthread_mutex_unlock(&q->lock);
+    return 0;
+}
+
+static vz_os_status vz_vaq_stop(vz_vaq *q) {
+    pthread_mutex_lock(&q->lock);
+    q->running = 0;
+    pthread_cond_broadcast(&q->cond);
+    pthread_mutex_unlock(&q->lock);
+    return 0;
+}
+
+static vz_os_status vz_vaq_pause(vz_vaq *q) {
+    pthread_mutex_lock(&q->lock);
+    q->paused = 1;
+    pthread_mutex_unlock(&q->lock);
+    return 0;
+}
+
+static vz_os_status vz_vaq_dispose(vz_vaq *q) {
+    pthread_mutex_lock(&q->lock);
+    int started = q->thread_started;
+    // Detach before the driver can free q. The driver may be inside a VzCore
+    // callback that needs the caller's lock chain, so joining here would
+    // deadlock on the audio-device-change path. Let it exit and clean up.
+    if (started)
+        pthread_detach(q->thread);
+    q->running = 0;
+    q->disposed = 1;
+    pthread_cond_broadcast(&q->cond);
+    pthread_mutex_unlock(&q->lock);
+
+    pthread_mutex_lock(&g_vaq_registry_lock);
+    for (int i = 0; i < g_vaq_count; i++) {
+        if (g_vaqs[i] == q) {
+            g_vaqs[i] = g_vaqs[--g_vaq_count];
+            break;
+        }
+    }
+    if (g_active_vaq == q)
+        g_active_vaq = NULL;
+    pthread_mutex_unlock(&g_vaq_registry_lock);
+
+    if (!started) {
+        for (int i = 0; i < VZ_VAQ_MAX_BUFFERS; i++) {
+            if (q->buffers[i].in_use && q->buffers[i].pub.mAudioData)
+                free(q->buffers[i].pub.mAudioData);
+        }
+        pthread_mutex_destroy(&q->lock);
+        pthread_cond_destroy(&q->cond);
+        free(q);
+    }
+    return 0;
+}
+
+static bool is_virtual_aq(vz_audio_queue_ref aq) {
+    if (!pcm_virtual_enabled || !aq)
+        return false;
+    bool found = false;
+    pthread_mutex_lock(&g_vaq_registry_lock);
+    for (int i = 0; i < g_vaq_count; i++) {
+        if ((void *)g_vaqs[i] == (void *)aq) {
+            found = true;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&g_vaq_registry_lock);
+    return found;
+}
+
+static vz_os_status vmm_AudioQueueNewOutput(
+        const vz_asbd *inFormat, vz_audio_queue_output_callback inCallback,
+        void *inUserData, CFRunLoopRef inCallbackRunLoop,
+        CFStringRef inCallbackRunLoopMode, uint32_t inFlags,
+        vz_audio_queue_ref *outAQ) {
+    if (pcm_hook_enabled && inFormat) {
+        pthread_mutex_lock(&pcm_lock);
+        pcm_publish_format_locked(inFormat);
+        pthread_mutex_unlock(&pcm_lock);
+    }
+    if (pcm_hook_enabled && pcm_virtual_enabled && inFormat) {
+        vz_vaq *q = calloc(1, sizeof(vz_vaq));
+        if (q) {
+            q->magic = VZ_VAQ_MAGIC;
+            q->format = *inFormat;
+            q->callback = inCallback;
+            q->user_data = inUserData;
+            pthread_mutex_init(&q->lock, NULL);
+            pthread_cond_init(&q->cond, NULL);
+            pthread_mutex_lock(&g_vaq_registry_lock);
+            g_active_vaq = q;
+            if (g_vaq_count < 8)
+                g_vaqs[g_vaq_count++] = q;
+            pthread_mutex_unlock(&g_vaq_registry_lock);
+            if (outAQ)
+                *outAQ = (vz_audio_queue_ref)q;
+            logf_("[vmmhook] vaq created %.0f Hz %u ch flags=0x%x",
+                  inFormat->mSampleRate, inFormat->mChannelsPerFrame,
+                  inFormat->mFormatFlags);
+            return 0;
+        }
+        logf_("[vmmhook] vaq allocation failed; falling back to route A");
+    }
+    return AudioQueueNewOutput(inFormat, inCallback, inUserData,
+        inCallbackRunLoop, inCallbackRunLoopMode, inFlags, outAQ);
+}
+
+static vz_os_status vmm_AudioQueueEnqueueBuffer(
+        vz_audio_queue_ref inAQ, vz_audio_queue_buffer_ref inBuffer,
+        uint32_t inNumPacketDescs, const void *inPacketDescs) {
+    if (is_virtual_aq(inAQ))
+        return vz_vaq_enqueue((vz_vaq *)inAQ, inBuffer);
+    if (pcm_hook_enabled) {
+        pthread_mutex_lock(&pcm_lock);
+        if (inBuffer && inBuffer->mAudioData &&
+            inBuffer->mAudioDataByteSize > 0) {
+            uint32_t length = inBuffer->mAudioDataByteSize;
+            pcm_send_audio_locked(inBuffer->mAudioData, length);
+            memset(inBuffer->mAudioData, 0, length);
+        }
+        pthread_mutex_unlock(&pcm_lock);
+    }
+    return AudioQueueEnqueueBuffer(inAQ, inBuffer, inNumPacketDescs,
+                                   inPacketDescs);
+}
+
+static vz_os_status vmm_AudioQueueAllocateBuffer(
+        vz_audio_queue_ref inAQ, uint32_t inBufferByteSize,
+        vz_audio_queue_buffer_ref *outBuffer) {
+    if (is_virtual_aq(inAQ))
+        return vz_vaq_allocate((vz_vaq *)inAQ, inBufferByteSize, outBuffer);
+    return AudioQueueAllocateBuffer(inAQ, inBufferByteSize, outBuffer);
+}
+
+static vz_os_status vmm_AudioQueueFreeBuffer(
+        vz_audio_queue_ref inAQ, vz_audio_queue_buffer_ref inBuffer) {
+    if (is_virtual_aq(inAQ))
+        return vz_vaq_free_buffer((vz_vaq *)inAQ, inBuffer);
+    return AudioQueueFreeBuffer(inAQ, inBuffer);
+}
+
+static vz_os_status vmm_AudioQueueStart(vz_audio_queue_ref inAQ,
+                                        const void *inStartTime) {
+    (void)inStartTime;
+    if (is_virtual_aq(inAQ))
+        return vz_vaq_start((vz_vaq *)inAQ);
+    return AudioQueueStart(inAQ, inStartTime);
+}
+
+static vz_os_status vmm_AudioQueueStop(vz_audio_queue_ref inAQ,
+                                       uint8_t inImmediate) {
+    if (is_virtual_aq(inAQ))
+        return vz_vaq_stop((vz_vaq *)inAQ);
+    return AudioQueueStop(inAQ, inImmediate);
+}
+
+static vz_os_status vmm_AudioQueuePause(vz_audio_queue_ref inAQ) {
+    if (is_virtual_aq(inAQ))
+        return vz_vaq_pause((vz_vaq *)inAQ);
+    return AudioQueuePause(inAQ);
+}
+
+static vz_os_status vmm_AudioQueueDispose(vz_audio_queue_ref inAQ,
+                                          uint8_t inImmediate) {
+    if (is_virtual_aq(inAQ))
+        return vz_vaq_dispose((vz_vaq *)inAQ);
+    return AudioQueueDispose(inAQ, inImmediate);
+}
+
+__attribute__((used)) static struct {
+    const void *replacement;
+    const void *replacee;
+} _ip_audio_queue_new_output __attribute__((section("__DATA,__interpose"))) = {
+    (const void *)&vmm_AudioQueueNewOutput,
+    (const void *)&AudioQueueNewOutput,
+};
+__attribute__((used)) static struct {
+    const void *replacement;
+    const void *replacee;
+} _ip_audio_queue_enqueue __attribute__((section("__DATA,__interpose"))) = {
+    (const void *)&vmm_AudioQueueEnqueueBuffer,
+    (const void *)&AudioQueueEnqueueBuffer,
+};
+__attribute__((used)) static struct {
+    const void *replacement;
+    const void *replacee;
+} _ip_audio_queue_allocate __attribute__((section("__DATA,__interpose"))) = {
+    (const void *)&vmm_AudioQueueAllocateBuffer,
+    (const void *)&AudioQueueAllocateBuffer,
+};
+__attribute__((used)) static struct {
+    const void *replacement;
+    const void *replacee;
+} _ip_audio_queue_free __attribute__((section("__DATA,__interpose"))) = {
+    (const void *)&vmm_AudioQueueFreeBuffer,
+    (const void *)&AudioQueueFreeBuffer,
+};
+__attribute__((used)) static struct {
+    const void *replacement;
+    const void *replacee;
+} _ip_audio_queue_start __attribute__((section("__DATA,__interpose"))) = {
+    (const void *)&vmm_AudioQueueStart,
+    (const void *)&AudioQueueStart,
+};
+__attribute__((used)) static struct {
+    const void *replacement;
+    const void *replacee;
+} _ip_audio_queue_stop __attribute__((section("__DATA,__interpose"))) = {
+    (const void *)&vmm_AudioQueueStop,
+    (const void *)&AudioQueueStop,
+};
+__attribute__((used)) static struct {
+    const void *replacement;
+    const void *replacee;
+} _ip_audio_queue_pause __attribute__((section("__DATA,__interpose"))) = {
+    (const void *)&vmm_AudioQueuePause,
+    (const void *)&AudioQueuePause,
+};
+__attribute__((used)) static struct {
+    const void *replacement;
+    const void *replacee;
+} _ip_audio_queue_dispose __attribute__((section("__DATA,__interpose"))) = {
+    (const void *)&vmm_AudioQueueDispose,
+    (const void *)&AudioQueueDispose,
+};
+// ---------------------------------------------------------------------------
 
 static bool should_trace_xpc(uint64_t *sequence) {
     *sequence = diagnostic_sequence(
@@ -2902,6 +3509,13 @@ static void start_health_timer(void) {
 
 __attribute__((constructor)) static void hook_init(void) {
     runtime_debug_logging = environment_flag_enabled("VZ_DEBUG_LOGGING");
+    pcm_hook_enabled = environment_flag_enabled("VZ_ALLOW_PCM_HOOK");
+    const char *virtualAQ = getenv("VZ_PCM_VIRTUAL_AQ");
+    pcm_virtual_enabled = pcm_hook_enabled &&
+        !(virtualAQ && virtualAQ[0] == '0' && virtualAQ[1] == '\0');
+    const char *vaqFrames = getenv("VZ_PCM_VAQ_FRAMES");
+    if (vaqFrames && vaqFrames[0])
+        pcm_vaq_target_frames = (uint32_t)strtoul(vaqFrames, NULL, 0);
     guest_runtime_policy_enabled =
         environment_flag_enabled("VZ_GUEST_RUNTIME_POLICY");
     runtime_trace_all_vcpu = runtime_debug_logging &&
@@ -2936,15 +3550,18 @@ __attribute__((constructor)) static void hook_init(void) {
         ? ((id(*)(id, SEL))objc_msgSend)(
               (id)audioSessionClass, sel_registerName("sharedInstance"))
         : nil;
-    id *categorySymbol = dlsym(RTLD_DEFAULT,
-                               "AVAudioSessionCategoryPlayAndRecord");
+    id *categorySymbol = dlsym(RTLD_DEFAULT, pcm_hook_enabled
+                               ? "AVAudioSessionCategoryAmbient"
+                               : "AVAudioSessionCategoryPlayAndRecord");
     id *modeSymbol = dlsym(RTLD_DEFAULT, "AVAudioSessionModeDefault");
     id audioError = nil;
     // 0x1 = MixWithOthers, 0x8 = DefaultToSpeaker. 0x4 (AllowBluetooth/HFP)
     // is opt-in via the global setting, because activating it wakes and keeps
     // bluetoothd busy even without a connected Bluetooth audio device.
     NSUInteger audioOptions = 0x1U | 0x8U;
-    if (environment_flag_enabled("VZ_ALLOW_BLUETOOTH"))
+    if (pcm_hook_enabled)
+        audioOptions = 0x1U; // Ambient: mix only, never force the speaker
+    else if (environment_flag_enabled("VZ_ALLOW_BLUETOOTH"))
         audioOptions |= 0x4U;
     BOOL categoryOK = audioSession && categorySymbol && modeSymbol &&
         ((BOOL(*)(id, SEL, id, id, NSUInteger, id *))objc_msgSend)(

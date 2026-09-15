@@ -98,6 +98,7 @@
 "Download Xcode" = "הורדת Xcode";
 "Downloading macOS" = "מתבצעת הורדה של macOS";
 "Downloads" = "הורדות";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "יש להזין שש קבוצות הקסדצימליות המופרדות בנקודתיים.";
 "Ethernet (%@)" = "Ethernet‏ (%@)";
 "Experimental" = "ניסיוני";
@@ -178,6 +179,8 @@
 "Optional" = "אופציונלי";
 "Options" = "אפשרויות";
 "Out of Video Memory" = "זיכרון הווידאו אזל";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "כבר יותר מעשור אנשים חולמים להפעיל את macOS ב-iPad. היום החלום הזה מתגשם. כדי להתחיל, יש ליצור Mac וירטואלי.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "כבר יותר מעשור אנשים חולמים לקחת את macOS איתם לכל מקום. היום החלום הזה מתגשם. כדי להתחיל, צרו Mac וירטואלי.";
 "Pixels Per Inch" = "פיקסלים לאינץ׳";

@@ -98,6 +98,7 @@
 "Download Xcode" = "ดาวน์โหลด Xcode";
 "Downloading macOS" = "กำลังดาวน์โหลด macOS";
 "Downloads" = "รายการดาวน์โหลด";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "ป้อนเลขฐานสิบหกหกชุดคั่นด้วยเครื่องหมายทวิภาค";
 "Ethernet (%@)" = "อีเทอร์เน็ต (%@)";
 "Experimental" = "ทดลอง";
@@ -178,6 +179,8 @@
 "Optional" = "ไม่บังคับ";
 "Options" = "ตัวเลือก";
 "Out of Video Memory" = "หน่วยความจำวิดีโอไม่เพียงพอ";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "ผู้คนใฝ่ฝันที่จะใช้งาน macOS บน iPad มานานกว่าทศวรรษ วันนี้ความฝันนั้นเป็นจริง สร้าง Mac เสมือนเพื่อเริ่มต้นใช้งาน";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "ผู้คนใฝ่ฝันที่จะพกพา macOS ไปได้ทุกที่มานานกว่าทศวรรษ วันนี้ความฝันนั้นเป็นจริงแล้ว สร้าง Mac เสมือนเพื่อเริ่มต้นใช้งาน";
 "Pixels Per Inch" = "พิกเซลต่อนิ้ว";

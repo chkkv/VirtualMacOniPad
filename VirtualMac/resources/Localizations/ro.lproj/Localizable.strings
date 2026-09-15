@@ -98,6 +98,7 @@
 "Download Xcode" = "Descărcați Xcode";
 "Downloading macOS" = "Se descarcă macOS";
 "Downloads" = "Descărcări";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "Introduceți sei ottetti esadecimali separati da due punti.";
 "Ethernet (%@)" = "Ethernet (%@)";
 "Experimental" = "Experimental";
@@ -178,6 +179,8 @@
 "Optional" = "Opțional";
 "Options" = "Opzioni";
 "Out of Video Memory" = "Memorie video epuizată";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "De mai bine de un deceniu, oamenii visează să ruleze macOS pe iPad. Astăzi, acel vis devine realitate. Creați un Mac virtual pentru a începe.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "De mai bine de un deceniu, oamenii visează să ia macOS cu ei oriunde merg. Astăzi, acel vis devine realitate. Creați un Mac virtual pentru a începe.";
 "Pixels Per Inch" = "Pixeli per inch";

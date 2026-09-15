@@ -256,10 +256,22 @@ for extension in dylib plist; do
 done
 [[ ! -e "$STAGE/var/jb/usr/lib/TweakInject/VZKeyboardPassthrough.dylib" ]] ||
     die "SpringBoard tweak must be installed by postinst after legacy cleanup"
-
 metadata="$(find "$STAGE" -type f \( -name .DS_Store -o -name '._*' \) -print -quit)"
 [[ -z "$metadata" ]] || die "host metadata was packaged: ${metadata#"$STAGE/"}"
-extended_attribute="$(xattr -lr "$STAGE" 2>/dev/null | head -1)"
+
+# macOS 15+ attaches com.apple.provenance to every file created by rsync, cp,
+# install, or ditto, and refuses to remove it (xattr -c/-d silently keep it).
+# It is an OS-enforced attribute rather than packaging pollution, so ignore it.
+# Avoid `head` here: under `set -o pipefail` it closes the pipe early and the
+# SIGPIPE'd xattr would abort the audit with exit 141 before reporting.
+extended_attribute=""
+while IFS= read -r line; do
+    case "$line" in
+        *com.apple.provenance:*) continue ;;
+    esac
+    extended_attribute="$line"
+    break
+done < <(xattr -lr "$STAGE" 2>/dev/null)
 [[ -z "$extended_attribute" ]] ||
     die "extended attribute was packaged: $extended_attribute"
 bridge_support="$(find "$FRAMEWORKS" -type d -name BridgeSupport -print -quit)"

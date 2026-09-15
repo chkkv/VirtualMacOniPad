@@ -17,6 +17,7 @@
 #import "VZGuestTools.h"
 #import "VZGuestRuntimePolicy.h"
 #import "VZTrackpadScrollBridge.h"
+#import "VZPCMAudioPlayer.h"
 #include <dlfcn.h>
 #include <objc/runtime.h>
 #include <objc/message.h>
@@ -83,6 +84,58 @@ static void setVMJetsamProtection(BOOL active)
 
 static id gVirtualMachine;
 static id gVirtualMachineDelegate;
+static VZPCMAudioPlayer *gPCMPlayer;
+static UILabel *gDebugHUDLabel;
+static NSTimer *gDebugHUDTimer;
+
+static void VZUpdateDebugHUD(void)
+{
+    if (!gDebugHUDLabel)
+        return;
+    double ms = gPCMPlayer ? gPCMPlayer.debugQueuedMilliseconds : 0.0;
+    double ratio = gPCMPlayer ? gPCMPlayer.debugBufferFillRatio : 0.0;
+    float rate = gPCMPlayer ? gPCMPlayer.debugPlaybackRate : 1.0f;
+    gDebugHUDLabel.text = [NSString stringWithFormat:
+        @"  PCM %.1f ms   %.0f%%   x%.3f  ", ms, ratio * 100.0, rate];
+}
+
+static void VZSetupDebugHUD(UIView *container)
+{
+    if (gDebugHUDLabel || !container)
+        return;
+    UILabel *label = [[UILabel alloc] init];
+    label.translatesAutoresizingMaskIntoConstraints = NO;
+    label.font = [UIFont monospacedDigitSystemFontOfSize:14
+                                                  weight:UIFontWeightRegular];
+    label.textColor = UIColor.whiteColor;
+    label.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.55];
+    label.textAlignment = NSTextAlignmentCenter;
+    label.layer.cornerRadius = 5.0;
+    label.layer.masksToBounds = YES;
+    [label setText:@"  PCM --  "];
+    [container addSubview:label];
+    [NSLayoutConstraint activateConstraints:@[
+        [label.centerXAnchor constraintEqualToAnchor:container.centerXAnchor],
+        [label.topAnchor constraintEqualToAnchor:
+            container.safeAreaLayoutGuide.topAnchor constant:6.0],
+    ]];
+    gDebugHUDLabel = label;
+    gDebugHUDTimer = [NSTimer scheduledTimerWithTimeInterval:0.25
+        repeats:YES block:^(NSTimer *timer) {
+        (void)timer;
+        VZUpdateDebugHUD();
+    }];
+    VZUpdateDebugHUD();
+}
+
+static void VZTeardownDebugHUD(void)
+{
+    [gDebugHUDTimer invalidate];
+    gDebugHUDTimer = nil;
+    [gDebugHUDLabel removeFromSuperview];
+    [gDebugHUDLabel release];
+    gDebugHUDLabel = nil;
+}
 static UIView *gFramebufferView;
 static id gFramebuffer;
 static id gKeyboard;
@@ -4136,6 +4189,7 @@ static void VZWriteInstallationAttempt(NSString *attemptPath, NSString *state,
 
 - (void)finishVMAndShowLibraryWithError:(NSError *)error
 {
+    VZTeardownDebugHUD();
     setVMJetsamProtection(NO);
     gSoftwareKeyboardRequested = NO;
     pencilVsockReset();
@@ -4148,6 +4202,11 @@ static void VZWriteInstallationAttempt(NSString *attemptPath, NSString *state,
     gFramebufferView = nil;
     [gVirtualMachine release];
     gVirtualMachine = nil;
+    if (gPCMPlayer) {
+        [gPCMPlayer stop];
+        [gPCMPlayer release];
+        gPCMPlayer = nil;
+    }
     gVideoMemoryAlertPresented = NO;
     gVirtualMachineDelegate = nil;
     gKeyboard = nil;
@@ -4576,6 +4635,11 @@ static void configureAudio(id configuration, NSDictionary *options) {
     // stream attachments. Use the same path for playback and microphone input.
     BOOL outputEnabled = [options[@"AudioOutputEnabled"] boolValue];
     BOOL inputEnabled = [options[@"AudioInputEnabled"] boolValue];
+    // PCM Hook temporarily drops the legacy input path: the app no longer
+    // requests microphone access, so expose only the output stream that feeds
+    // the PCM bridge.
+    if ([VZAppSettings.sharedSettings boolForKey:VZPCMHookKey])
+        inputEnabled = NO;
     if (!outputEnabled && !inputEnabled) {
         printf("[VirtualMac] audio disabled by VM configuration\n");
         return;
@@ -4664,6 +4728,15 @@ static void configureVideoToolbox(id configuration, NSDictionary *options) {
 #endif
 
 static void requestMicrophoneAccess(dispatch_block_t continuation) {
+    // PCM Hook abandons the legacy capture/output path: guest audio is routed
+    // to VZPCMAudioPlayer with a Playback session. Do not activate or claim
+    // the microphone here, otherwise the app would still take over audio at
+    // launch even though no input stream is used.
+    if ([VZAppSettings.sharedSettings boolForKey:VZPCMHookKey]) {
+        printf("[VirtualMac] PCM hook enabled; skipping audio session capture\n");
+        continuation();
+        return;
+    }
     AVAudioSession *session = AVAudioSession.sharedInstance;
     AVAudioSessionRecordPermission permission = session.recordPermission;
     printf("[VirtualMac] microphone permission before request=%lu\n",
@@ -5171,6 +5244,7 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
     unlink("/tmp/vzxpchook.log");
     unlink("/tmp/vmmhook.log");
     unlink("/tmp/vmm.stderr.log");
+    unlink("/tmp/VZPVM.log");
     setenv("VZ_VMM_BIN",
            "/var/root/VirtualMac/payload/VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
            1);
@@ -5223,6 +5297,38 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
     BOOL allowBluetoothAudio =
         [VZAppSettings.sharedSettings boolForKey:VZBluetoothAudioRoutingKey];
     setenv("VZ_ALLOW_BLUETOOTH", allowBluetoothAudio ? "1" : "0", 1);
+
+    // PCM Hook: host the AF_UNIX socket and hand its path to the VMM. When on,
+    // VzCore's AudioQueue backend forwards raw PCM here instead of playing, and
+    // the app plays it through the standard AVFoundation playback path.
+    if (gPCMPlayer) {
+        [gPCMPlayer stop];
+        [gPCMPlayer release];
+        gPCMPlayer = nil;
+    }
+    BOOL pcmHook = [VZAppSettings.sharedSettings boolForKey:VZPCMHookKey];
+    if (pcmHook) {
+        NSString *pcmPath = VZPCMAudioPlayer.defaultSocketPath;
+        gPCMPlayer = [[VZPCMAudioPlayer alloc] initWithSocketPath:pcmPath];
+        NSError *pcmError = nil;
+        if ([gPCMPlayer startWithError:&pcmError]) {
+            BOOL virtualAudio = [VZAppSettings.sharedSettings
+                boolForKey:VZPCMVirtualAudioKey];
+            setenv("VZ_ALLOW_PCM_HOOK", "1", 1);
+            setenv("VZ_PCM_VIRTUAL_AQ", virtualAudio ? "1" : "0", 1);
+            setenv("VZ_PCM_SOCKET", pcmPath.UTF8String, 1);
+        } else {
+            printf("[VirtualMac] PCM hook start failed: %s\n",
+                   pcmError.localizedDescription.UTF8String);
+            [gPCMPlayer release];
+            gPCMPlayer = nil;
+            pcmHook = NO;
+        }
+    }
+    if (!pcmHook) {
+        setenv("VZ_ALLOW_PCM_HOOK", "0", 1);
+        unsetenv("VZ_PCM_SOCKET");
+    }
 
     setStatus(VZL(@"Loading extracted Apple virtualization frameworks…"));
     BOOL guestToolsEnabled =
@@ -5501,8 +5607,10 @@ static NSDictionary *runtimeDisplayOptions(NSDictionary *options,
 }
 
 static void startVirtualMachine(UIView *container, id delegate,
-                                NSString *bundlePath,
-                                NSDictionary *options) {
+                                 NSString *bundlePath,
+                                 NSDictionary *options) {
+    if ([VZAppSettings.sharedSettings boolForKey:VZDebugHUDKey])
+        VZSetupDebugHUD(container);
     NSDictionary *runtimeOptions = runtimeDisplayOptions(options, container);
     // Ventura's VZ startup performs synchronous XPC and device construction.
     // On iPadOS 14, doing that from a tap blocks UIKit long enough to trip the

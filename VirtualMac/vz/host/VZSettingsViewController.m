@@ -234,8 +234,8 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
 {
     (void)tableView;
     return section == 0 ? 4 : section == 1 ? 6 : section == 2 ? 4 :
-        section == 3 ? 3 : section == 4 ? 3 : section == 5 ? 2 :
-        section == 6 ? 1 : section == 7 ? 4 : 1;
+        section == 3 ? 4 : section == 4 ? 3 : section == 5 ? 2 :
+        section == 6 ? 1 : section == 7 ? 4 : 3;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section
@@ -422,7 +422,8 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
     } else if (indexPath.section == 3) {
         NSArray *titles = @[VZL(@"Fix Keyboard Crash"),
                             VZL(@"Fix External Display Scroll Direction"),
-                            VZL(@"Debug Logging")];
+                            VZL(@"Debug Logging"),
+                            VZL(@"Enable Debug HUD")];
         cell.textLabel.text = titles[indexPath.row];
         if (indexPath.row == 2) {
             NSString *mode = [settings stringForKey:VZDebugLoggingKey];
@@ -432,6 +433,15 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
                 : [mode isEqualToString:VZDebugLoggingModeNextBoot]
                     ? VZL(@"On for Next Boot") : VZL(@"Off");
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+            return cell;
+        }
+        if (indexPath.row == 3) {
+            UISwitch *toggle = [[[UISwitch alloc] init] autorelease];
+            toggle.on = [settings boolForKey:VZDebugHUDKey];
+            [toggle addTarget:self action:@selector(debugHUDToggleChanged:)
+                forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = toggle;
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
             return cell;
         }
         NSArray *keys = @[VZKeyboardCrashWorkaroundKey,
@@ -483,10 +493,17 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
         cell.imageView.image = [UIImage systemImageNamed:images[indexPath.row]];
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     } else if (indexPath.section == 8) {
-        cell.textLabel.text = VZL(@"BluetoothAudioRouting");
+        NSArray *titles = @[VZL(@"BluetoothAudioRouting"), VZL(@"PCM Hook"),
+                            VZL(@"PCM Virtual Audio")];
+        NSArray *keys = @[VZBluetoothAudioRoutingKey, VZPCMHookKey,
+                          VZPCMVirtualAudioKey];
+        NSArray *actions = @[@"allowBluetoothToggleChanged:",
+                             @"pcmHookToggleChanged:",
+                             @"pcmVirtualAudioToggleChanged:"];
+        cell.textLabel.text = titles[indexPath.row];
         UISwitch *toggle = [[[UISwitch alloc] init] autorelease];
-        toggle.on = [settings boolForKey:VZBluetoothAudioRoutingKey];
-        [toggle addTarget:self action:@selector(allowBluetoothToggleChanged:)
+        toggle.on = [settings boolForKey:keys[indexPath.row]];
+        [toggle addTarget:self action:NSSelectorFromString(actions[indexPath.row])
             forControlEvents:UIControlEventValueChanged];
         cell.accessoryView = toggle;
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
@@ -570,6 +587,21 @@ static NSString *VZSettingsFittingTitle(UITableView *tableView,
 - (void)allowBluetoothToggleChanged:(UISwitch *)sender
 {
     [VZAppSettings.sharedSettings setBool:sender.on forKey:VZBluetoothAudioRoutingKey];
+}
+
+- (void)pcmHookToggleChanged:(UISwitch *)sender
+{
+    [VZAppSettings.sharedSettings setBool:sender.on forKey:VZPCMHookKey];
+}
+
+- (void)pcmVirtualAudioToggleChanged:(UISwitch *)sender
+{
+    [VZAppSettings.sharedSettings setBool:sender.on forKey:VZPCMVirtualAudioKey];
+}
+
+- (void)debugHUDToggleChanged:(UISwitch *)sender
+{
+    [VZAppSettings.sharedSettings setBool:sender.on forKey:VZDebugHUDKey];
 }
 
 - (void)hudOpacityChanged:(UISlider *)sender

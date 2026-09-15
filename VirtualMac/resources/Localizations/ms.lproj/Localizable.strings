@@ -98,6 +98,7 @@
 "Download Xcode" = "Muat Turun Xcode";
 "Downloading macOS" = "Memuat turun macOS";
 "Downloads" = "Muat Turun";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "Masukkan enam oktet perenambelasan yang dipisahkan dengan titik dua.";
 "Ethernet (%@)" = "Ethernet (%@)";
 "Experimental" = "Eksperimental";
@@ -178,6 +179,8 @@
 "Optional" = "Pilihan";
 "Options" = "Pilihan";
 "Out of Video Memory" = "Memori Video Kehabisan";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Selama lebih sedekad, orang ramai mengimpikan macOS dijalankan pada iPad. Hari ini, impian itu menjadi kenyataan. Cipta Mac maya untuk bermula.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Selama lebih sedekad, orang ramai mengimpikan untuk membawa macOS ke mana sahaja mereka pergi. Hari ini, impian itu menjadi kenyataan. Cipta Mac maya untuk bermula.";
 "Pixels Per Inch" = "Piksel Per Inci";

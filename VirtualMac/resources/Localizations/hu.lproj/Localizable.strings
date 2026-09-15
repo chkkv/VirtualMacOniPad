@@ -98,6 +98,7 @@
 "Download Xcode" = "Az Xcode letöltése";
 "Downloading macOS" = "macOS letöltése";
 "Downloads" = "Letöltések";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "Adjon meg hat, kettősponttal elválasztott hexadecimális oktettet.";
 "Ethernet (%@)" = "Ethernet (%@)";
 "Experimental" = "Kísérleti";
@@ -178,6 +179,8 @@
 "Optional" = "Opcionális";
 "Options" = "Beállítások";
 "Out of Video Memory" = "Elfogyott a videomemória";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Az emberek több mint egy évtizede álmodnak arról, hogy macOS-t futtassanak iPaden. Ma ez az álom valóra válik. Első lépésként hozzon létre egy virtuális Macet.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Az emberek több mint egy évtizede álmodnak arról, hogy bárhová magukkal vihessék a macOS-t. Ma ez az álom valóra válik. Első lépésként hozzon létre egy virtuális Macet.";
 "Pixels Per Inch" = "Képpont hüvelykenként";

@@ -98,6 +98,7 @@
 "Download Xcode" = "Xcode 다운로드";
 "Downloading macOS" = "macOS 다운로드 중";
 "Downloads" = "다운로드";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "콜론으로 구분된 16진수 옥텟 6개를 입력하십시오.";
 "Ethernet (%@)" = "이더넷(%@)";
 "Experimental" = "실험적";
@@ -178,6 +179,8 @@
 "Optional" = "선택 사항";
 "Options" = "옵션";
 "Out of Video Memory" = "비디오 메모리 부족";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "10년 넘게 사람들은 iPad에서 macOS를 실행하는 것을 꿈꿔 왔습니다. 오늘 그 꿈이 이루어집니다. 가상 Mac을 생성하여 시작하십시오.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "사람들은 10년 넘게 어디서나 macOS를 사용하는 꿈을 꾸어 왔습니다. 오늘, 그 꿈이 현실이 됩니다. 시작하려면 가상 Mac을 생성하세요.";
 "Pixels Per Inch" = "인치당 픽셀";

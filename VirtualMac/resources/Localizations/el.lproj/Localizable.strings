@@ -98,6 +98,7 @@
 "Download Xcode" = "Λήψη Xcode";
 "Downloading macOS" = "Λήψη του macOS";
 "Downloads" = "Λήψεις";
+"Enable Debug HUD" = "Enable Debug HUD";
 "Enter six hexadecimal octets separated by colons." = "Εισαγάγετε έξι δεκαεξαδικές οκτάδες χωρισμένες με άνω και κάτω τελεία.";
 "Ethernet (%@)" = "Ethernet (%@)";
 "Experimental" = "Πειραματικό";
@@ -178,6 +179,8 @@
 "Optional" = "Προαιρετικά";
 "Options" = "Επιλογές";
 "Out of Video Memory" = "Η μνήμη γραφικών εξαντλήθηκε";
+"PCM Hook" = "PCM Hook";
+"PCM Virtual Audio" = "PCM Virtual Audio";
 "People have dreamed of running macOS on iPad for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Για περισσότερο από μια δεκαετία, οι άνθρωποι ονειρεύονται να εκτελούν το macOS σε iPad. Σήμερα, αυτό το όνειρο γίνεται πραγματικότητα. Δημιουργήστε ένα εικονικό Mac για να ξεκινήσετε.";
 "People have dreamed of taking macOS wherever they go for more than a decade. Today, that dream comes true. Create a Virtual Mac to get started." = "Για περισσότερο από μια δεκαετία, οι άνθρωποι ονειρεύονται να παίρνουν το macOS μαζί τους όπου κι αν πηγαίνουν. Σήμερα, αυτό το όνειρο γίνεται πραγματικότητα. Δημιουργήστε ένα εικονικό Mac για να ξεκινήσετε.";
 "Pixels Per Inch" = "Pixel ανά ίντσα";
