@@ -1146,9 +1146,11 @@ extern vz_os_status AudioQueueStop(vz_audio_queue_ref, uint8_t);
 extern vz_os_status AudioQueuePause(vz_audio_queue_ref);
 extern vz_os_status AudioQueueDispose(vz_audio_queue_ref, uint8_t);
 
-// Defined with the PCM input hook below; declared here so the dispose path can
-// drop a queue's input mapping regardless of definition order.
+// Defined with the PCM input hook below; declared here so the output enqueue
+// path can tell input queues apart, and the dispose path can drop a queue's
+// input mapping, regardless of definition order.
 static void pcm_input_forget(vz_audio_queue_ref aq);
+static bool pcm_input_is_queue(vz_audio_queue_ref aq);
 
 // Route B replaces the real AudioQueue with a clock we drive ourselves. This
 // bypasses ClientAudioQueue entirely, so the native 4096-frame block layout
@@ -1595,6 +1597,12 @@ static vz_os_status vmm_AudioQueueEnqueueBuffer(
         uint32_t inNumPacketDescs, const void *inPacketDescs) {
     if (is_virtual_aq(inAQ))
         return vz_vaq_enqueue((vz_vaq *)inAQ, inBuffer);
+    // An input queue re-enqueues its capture buffers to keep recording. Those
+    // buffers are not playback and must never be forwarded to the PCM output
+    // bridge, or the microphone would be echoed to the speaker.
+    if (pcm_input_is_queue(inAQ))
+        return AudioQueueEnqueueBuffer(inAQ, inBuffer, inNumPacketDescs,
+                                       inPacketDescs);
     if (pcm_hook_enabled) {
         pthread_mutex_lock(&pcm_lock);
         if (inBuffer && inBuffer->mAudioData &&
@@ -1928,7 +1936,12 @@ static vz_os_status vmm_AudioQueueNewInput(
         vz_audio_queue_input_callback inCallback, void *inUserData,
         CFRunLoopRef inCallbackRunLoop, CFStringRef inCallbackRunLoopMode,
         uint32_t inFlags, vz_audio_queue_ref *outAQ) {
-    if (pcm_input_enabled && inFormat)
+    // When the bridge is off, leave the native input path completely alone:
+    // wrapping the callback without registering a mapping would swallow it.
+    if (!pcm_input_enabled)
+        return AudioQueueNewInput(inFormat, inCallback, inUserData,
+            inCallbackRunLoop, inCallbackRunLoopMode, inFlags, outAQ);
+    if (inFormat)
         pcm_input_publish_format(inFormat);
     vz_os_status status = AudioQueueNewInput(inFormat, vmm_input_callback,
         inUserData, inCallbackRunLoop, inCallbackRunLoopMode, inFlags, outAQ);
@@ -1982,6 +1995,21 @@ static bool pcm_input_read_full(int fd, void *data, size_t length) {
         return false;
     }
     return true;
+}
+
+static bool pcm_input_is_queue(vz_audio_queue_ref aq) {
+    if (!pcm_input_enabled || !aq)
+        return false;
+    bool found = false;
+    pthread_mutex_lock(&g_input_entry_lock);
+    for (int i = 0; i < VZ_PCM_IN_ENTRIES; i++) {
+        if (g_input_entries[i].in_use && g_input_entries[i].aq == aq) {
+            found = true;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&g_input_entry_lock);
+    return found;
 }
 
 static void pcm_input_forget(vz_audio_queue_ref aq) {
