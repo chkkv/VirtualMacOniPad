@@ -1194,11 +1194,8 @@ static bool pcm_hook_enabled;
 static int pcm_socket_fd = -1;
 static bool pcm_setup_sent;
 static struct vz_pcm_setup pcm_stream_format;
-static uint64_t pcm_dropped_frames;
 static pthread_mutex_t pcm_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t pcm_frame_buffer[sizeof(struct vz_pcm_header) + 65536];
-static uint64_t pcm_blocks_sent;
-static uint64_t pcm_bytes_sent;
 static bool pcm_virtual_enabled;
 static uint32_t pcm_vaq_target_frames = 1024u;
 static vz_vaq *g_active_vaq;
@@ -1230,7 +1227,6 @@ static void pcm_attempt_connect_locked(void) {
     setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
     pcm_socket_fd = fd;
     pcm_setup_sent = false;
-    logf_("[vmmhook] pcm hook connected %s", path);
 }
 
 static void pcm_send_frame_locked(uint16_t type, const void *payload,
@@ -1261,7 +1257,6 @@ static void pcm_send_frame_locked(uint16_t type, const void *payload,
         close(fd);
         pcm_socket_fd = -1;
         pcm_setup_sent = false;
-        __atomic_add_fetch(&pcm_dropped_frames, 1, __ATOMIC_RELAXED);
         return;
     }
 }
@@ -1280,12 +1275,6 @@ static void pcm_publish_format_locked(const vz_asbd *inFormat) {
         pcm_send_frame_locked(VZ_PCM_MESSAGE_SETUP, &pcm_stream_format,
                               (uint32_t)sizeof(pcm_stream_format));
         pcm_setup_sent = true;
-        logf_("[vmmhook] pcm hook setup %.0f Hz %u ch flags=0x%x "
-              "bytes/frame=%u",
-              pcm_stream_format.sample_rate,
-              pcm_stream_format.channels_per_frame,
-              pcm_stream_format.format_flags,
-              pcm_stream_format.bytes_per_frame);
     }
 }
 
@@ -1305,15 +1294,6 @@ static void pcm_send_audio_locked(const void *data, uint32_t length) {
     if (!data || length == 0)
         return;
     pcm_send_frame_locked(VZ_PCM_MESSAGE_AUDIO, data, length);
-    uint64_t block = __atomic_add_fetch(&pcm_blocks_sent, 1,
-                                        __ATOMIC_RELAXED);
-    __atomic_add_fetch(&pcm_bytes_sent, length, __ATOMIC_RELAXED);
-    if (block <= 12 || (block & 0xFF) == 0) {
-        uint32_t bytesPerFrame = pcm_stream_format.bytes_per_frame;
-        logf_("[vmmhook] pcm block #%llu bytes=%u frames=%u",
-              (unsigned long long)block, length,
-              bytesPerFrame ? length / bytesPerFrame : 0);
-    }
 }
 
 // --- Route B: a self-clocked virtual AudioQueue -----------------------------
@@ -1436,12 +1416,6 @@ static void *vz_vaq_thread(void *arg) {
             continue;
         }
         slot->queued = 0;
-        static int vz_vaq_trace;
-        if (vz_vaq_trace < 40) {
-            logf_("[vmmhook] vaq take queued=%d bytes=%u",
-                  q->qcount, slot->pub.mAudioDataByteSize);
-            vz_vaq_trace++;
-        }
         void *data = slot->pub.mAudioData;
         uint32_t bytes = slot->pub.mAudioDataByteSize;
         double rate = q->format.mSampleRate;
@@ -1484,7 +1458,6 @@ static vz_os_status vz_vaq_start(vz_vaq *q) {
     pthread_mutex_lock(&q->lock);
     q->running = 1;
     q->paused = 0;
-    logf_("[vmmhook] vaq start queued=%d", q->qcount);
     if (!q->thread_started) {
         q->thread_started = 1;
         pthread_create(&q->thread, NULL, vz_vaq_thread, q);
@@ -1586,12 +1559,8 @@ static vz_os_status vmm_AudioQueueNewOutput(
             pthread_mutex_unlock(&g_vaq_registry_lock);
             if (outAQ)
                 *outAQ = (vz_audio_queue_ref)q;
-            logf_("[vmmhook] vaq created %.0f Hz %u ch flags=0x%x",
-                  inFormat->mSampleRate, inFormat->mChannelsPerFrame,
-                  inFormat->mFormatFlags);
             return 0;
         }
-        logf_("[vmmhook] vaq allocation failed; falling back to route A");
     }
     return AudioQueueNewOutput(inFormat, inCallback, inUserData,
         inCallbackRunLoop, inCallbackRunLoopMode, inFlags, outAQ);
@@ -1819,7 +1788,6 @@ static void pcm_input_set_wanted(bool wanted) {
     // session itself and must not be disturbed.
     if (pcm_virtual_enabled)
         vmm_audio_session_set_active(wanted);
-    logf_("[vmmhook] pcm input %s", wanted ? "started" : "stopped");
 }
 
 static void pcm_input_ring_ensure_locked(void) {
@@ -1965,12 +1933,6 @@ static bool pcm_input_publish_format(const vz_asbd *inFormat) {
             shutdown(pcm_input_fd, SHUT_RDWR);
     }
     pthread_mutex_unlock(&pcm_input_lock);
-    if (first || changed) {
-        logf_("[vmmhook] pcm input %s %.0f Hz %u ch flags=0x%x bytes/frame=%u",
-              first ? "setup" : "format change",
-              updated.sample_rate, updated.channels_per_frame,
-              updated.format_flags, updated.bytes_per_frame);
-    }
     return first || changed;
 }
 
@@ -2080,8 +2042,7 @@ static void pcm_input_disconnect(const char *reason) {
     pthread_mutex_unlock(&pcm_input_lock);
     if (fd >= 0)
         close(fd);
-    if (reason)
-        logf_("[vmmhook] pcm input %s", reason);
+    (void)reason;
 }
 
 static void *pcm_input_thread_main(void *arg) {
@@ -2138,7 +2099,6 @@ static void *pcm_input_thread_main(void *arg) {
             pthread_mutex_lock(&pcm_input_lock);
             pcm_input_fd = fd;
             pthread_mutex_unlock(&pcm_input_lock);
-            logf_("[vmmhook] pcm input connected %s", path);
             continue;
         }
 

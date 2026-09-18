@@ -87,57 +87,6 @@ static id gVirtualMachine;
 static id gVirtualMachineDelegate;
 static VZPCMAudioPlayer *gPCMPlayer;
 static VZPCMAudioCapture *gPCMCapture;
-static UILabel *gDebugHUDLabel;
-static NSTimer *gDebugHUDTimer;
-
-static void VZUpdateDebugHUD(void)
-{
-    if (!gDebugHUDLabel)
-        return;
-    double ms = gPCMPlayer ? gPCMPlayer.debugQueuedMilliseconds : 0.0;
-    double ratio = gPCMPlayer ? gPCMPlayer.debugBufferFillRatio : 0.0;
-    float rate = gPCMPlayer ? gPCMPlayer.debugPlaybackRate : 1.0f;
-    gDebugHUDLabel.text = [NSString stringWithFormat:
-        @"  PCM %.1f ms   %.0f%%   x%.3f  ", ms, ratio * 100.0, rate];
-}
-
-static void VZSetupDebugHUD(UIView *container)
-{
-    if (gDebugHUDLabel || !container)
-        return;
-    UILabel *label = [[UILabel alloc] init];
-    label.translatesAutoresizingMaskIntoConstraints = NO;
-    label.font = [UIFont monospacedDigitSystemFontOfSize:14
-                                                  weight:UIFontWeightRegular];
-    label.textColor = UIColor.whiteColor;
-    label.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.55];
-    label.textAlignment = NSTextAlignmentCenter;
-    label.layer.cornerRadius = 5.0;
-    label.layer.masksToBounds = YES;
-    [label setText:@"  PCM --  "];
-    [container addSubview:label];
-    [NSLayoutConstraint activateConstraints:@[
-        [label.centerXAnchor constraintEqualToAnchor:container.centerXAnchor],
-        [label.topAnchor constraintEqualToAnchor:
-            container.safeAreaLayoutGuide.topAnchor constant:6.0],
-    ]];
-    gDebugHUDLabel = label;
-    gDebugHUDTimer = [NSTimer scheduledTimerWithTimeInterval:0.25
-        repeats:YES block:^(NSTimer *timer) {
-        (void)timer;
-        VZUpdateDebugHUD();
-    }];
-    VZUpdateDebugHUD();
-}
-
-static void VZTeardownDebugHUD(void)
-{
-    [gDebugHUDTimer invalidate];
-    gDebugHUDTimer = nil;
-    [gDebugHUDLabel removeFromSuperview];
-    [gDebugHUDLabel release];
-    gDebugHUDLabel = nil;
-}
 static UIView *gFramebufferView;
 static id gFramebuffer;
 static id gKeyboard;
@@ -4191,7 +4140,6 @@ static void VZWriteInstallationAttempt(NSString *attemptPath, NSString *state,
 
 - (void)finishVMAndShowLibraryWithError:(NSError *)error
 {
-    VZTeardownDebugHUD();
     setVMJetsamProtection(NO);
     gSoftwareKeyboardRequested = NO;
     pencilVsockReset();
@@ -4742,7 +4690,6 @@ static void requestMicrophoneAccess(dispatch_block_t continuation) {
     // microphone, so only skip when input is off.
     if ([VZAppSettings.sharedSettings boolForKey:VZPCMHookKey] &&
         ![VZAppSettings.sharedSettings boolForKey:VZPCMInputKey]) {
-        printf("[VirtualMac] PCM hook enabled; skipping audio session capture\n");
         continuation();
         return;
     }
@@ -5253,7 +5200,6 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
     unlink("/tmp/vzxpchook.log");
     unlink("/tmp/vmmhook.log");
     unlink("/tmp/vmm.stderr.log");
-    unlink("/tmp/VZPVM.log");
     setenv("VZ_VMM_BIN",
            "/var/root/VirtualMac/payload/VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
            1);
@@ -5319,16 +5265,13 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
     if (pcmHook) {
         NSString *pcmPath = VZPCMAudioPlayer.defaultSocketPath;
         gPCMPlayer = [[VZPCMAudioPlayer alloc] initWithSocketPath:pcmPath];
-        NSError *pcmError = nil;
-        if ([gPCMPlayer startWithError:&pcmError]) {
+        if ([gPCMPlayer startWithError:NULL]) {
             BOOL virtualAudio = [VZAppSettings.sharedSettings
                 boolForKey:VZPCMVirtualAudioKey];
             setenv("VZ_ALLOW_PCM_HOOK", "1", 1);
             setenv("VZ_PCM_VIRTUAL_AQ", virtualAudio ? "1" : "0", 1);
             setenv("VZ_PCM_SOCKET", pcmPath.UTF8String, 1);
         } else {
-            printf("[VirtualMac] PCM hook start failed: %s\n",
-                   pcmError.localizedDescription.UTF8String);
             [gPCMPlayer release];
             gPCMPlayer = nil;
             pcmHook = NO;
@@ -5365,13 +5308,10 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
                     AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
                 error:nil];
         };
-        NSError *captureError = nil;
-        if ([gPCMCapture startWithError:&captureError]) {
+        if ([gPCMCapture startWithError:NULL]) {
             setenv("VZ_ALLOW_PCM_INPUT", "1", 1);
             setenv("VZ_PCM_INPUT_SOCKET", inputPath.UTF8String, 1);
         } else {
-            printf("[VirtualMac] PCM input start failed: %s\n",
-                   captureError.localizedDescription.UTF8String);
             [gPCMCapture release];
             gPCMCapture = nil;
             pcmInput = NO;
@@ -5661,8 +5601,6 @@ static NSDictionary *runtimeDisplayOptions(NSDictionary *options,
 static void startVirtualMachine(UIView *container, id delegate,
                                  NSString *bundlePath,
                                  NSDictionary *options) {
-    if ([VZAppSettings.sharedSettings boolForKey:VZDebugHUDKey])
-        VZSetupDebugHUD(container);
     NSDictionary *runtimeOptions = runtimeDisplayOptions(options, container);
     // Ventura's VZ startup performs synchronous XPC and device construction.
     // On iPadOS 14, doing that from a tap blocks UIKit long enough to trip the

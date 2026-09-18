@@ -205,8 +205,6 @@ static void VZPCMCaptureEncode(float * const *planes,
 
     self.listenFD = fd;
     self.running = YES;
-    printf("[VirtualMac] PCM input listening on %s\n",
-           self.socketPath.UTF8String);
     dispatch_async(self.ioQueue, ^{ [self acceptLoop]; });
     return YES;
 }
@@ -260,7 +258,6 @@ static void VZPCMCaptureEncode(float * const *planes,
         self.clientFD = client;
         int rcvbuf = 256 * 1024;
         setsockopt(client, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
-        printf("[VirtualMac] PCM input VMM connected\n");
         [self readLoop:client];
         close(client);
         self.clientFD = -1;
@@ -268,7 +265,6 @@ static void VZPCMCaptureEncode(float * const *planes,
             [self stopEngineLocked];
             [self notifyCaptureState:NO];
         });
-        printf("[VirtualMac] PCM input VMM disconnected\n");
     }
 }
 
@@ -410,17 +406,13 @@ static void VZPCMCaptureEncode(float * const *planes,
                    error:&error];
     [session setPreferredSampleRate:wire.sampleRate error:&error];
     [session setPreferredIOBufferDuration:0.002 error:&error];
-    if (![session setActive:YES error:&error]) {
-        printf("[VirtualMac] PCM input session activation failed: %s\n",
-               error.localizedDescription.UTF8String);
+    if (![session setActive:YES error:&error])
         return;
-    }
 
     AVAudioEngine *engine = [[AVAudioEngine alloc] init];
     AVAudioInputNode *input = engine.inputNode;
     AVAudioFormat *inputFormat = [input outputFormatForBus:0];
     if (!inputFormat || inputFormat.channelCount == 0) {
-        printf("[VirtualMac] PCM input has no capture format\n");
         [engine release];
         return;
     }
@@ -442,7 +434,6 @@ static void VZPCMCaptureEncode(float * const *planes,
                                               toFormat:converterOutput]
             : nil;
         if (!converter) {
-            printf("[VirtualMac] PCM input converter unavailable\n");
             [converterOutput release];
             [engine release];
             return;
@@ -464,15 +455,11 @@ static void VZPCMCaptureEncode(float * const *planes,
     @try {
         [engine prepare];
         if (![engine startAndReturnError:&error]) {
-            printf("[VirtualMac] PCM input engine start failed: %s\n",
-                   error.localizedDescription.UTF8String);
             [input removeTapOnBus:0];
             [engine release];
             return;
         }
-    } @catch (NSException *exception) {
-        printf("[VirtualMac] PCM input engine threw: %s\n",
-               exception.reason.UTF8String);
+    } @catch (__unused NSException *exception) {
         [input removeTapOnBus:0];
         [engine release];
         return;
@@ -497,10 +484,6 @@ static void VZPCMCaptureEncode(float * const *planes,
                selector:@selector(handleMediaServicesReset:)
                    name:AVAudioSessionMediaServicesWereResetNotification
                  object:nil];
-
-    printf("[VirtualMac] PCM input capturing %.0f Hz %u ch (wire %s, %u "
-           "bits)\n", wire.sampleRate, wire.channels,
-           wire.interleaved ? "interleaved" : "planar", wire.bits);
 }
 
 - (void)stopEngineLocked

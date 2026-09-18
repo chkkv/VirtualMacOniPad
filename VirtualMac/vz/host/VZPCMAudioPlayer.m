@@ -6,12 +6,10 @@
 
 #include <errno.h>
 #include <math.h>
-#include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
 
@@ -47,23 +45,6 @@ static AVAudioSessionCategoryOptions VZPCMPlayerSessionOptions(void)
         ? (AVAudioSessionCategoryOptionMixWithOthers |
            AVAudioSessionCategoryOptionDefaultToSpeaker)
         : 0;
-}
-
-// Append-only diagnostic log, matching the other /tmp diag logs' fopen/fchmod
-// form. Called on every produce and consume so the file shows the live PCM
-// backlog and drift correction alongside the rest of the device logs.
-static void VZPVMLog(const char *format, ...)
-{
-    FILE *file = fopen("/tmp/VZPVM.log", "a");
-    if (!file)
-        return;
-    fchmod(fileno(file), 0666);
-    va_list args;
-    va_start(args, format);
-    vfprintf(file, format, args);
-    va_end(args);
-    fputc('\n', file);
-    fclose(file);
 }
 
 static BOOL VZPCMReadFull(int fd, void *buffer, size_t length)
@@ -184,7 +165,6 @@ typedef struct {
     bool stalled;
     double ratio;          // current consumption rate, consumer-owned
     uint32_t ratioStep;    // round(ratio * 2^16), the per-frame cursor step
-    volatile uint32_t lastRatioMicro; // drift ratio * 1e6, HUD-only, atomic
 } VZPCMRenderContext;
 
 static uint32_t VZPCMNextPowerOfTwo(uint32_t value)
@@ -431,9 +411,6 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
                 // the per-frame loop stays integer-only.
                 ctx->ratioStep =
                     (uint32_t)llround(ctx->ratio * (double)VZ_PCM_FRAC_ONE);
-                __atomic_store_n(&ctx->lastRatioMicro,
-                                 (uint32_t)(ctx->ratio * 1000000.0),
-                                 __ATOMIC_RELAXED);
             }
         }
     }
@@ -542,16 +519,6 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
     __atomic_store_n(&ring->readFrames, readPos, __ATOMIC_RELEASE);
     if (isSilence && !producedAny)
         *isSilence = YES;
-
-    VZPVMLog("[vz-pcm] consume frames=%u cursor=%u.%05u write=%u read=%u "
-             "backlog=%d ratio=%.6f produced=%d",
-             (unsigned)frameCount,
-             (unsigned)(cursor >> VZ_PCM_FRAC_BITS),
-             (unsigned)((cursor & VZ_PCM_FRAC_MASK) * 100000 /
-                        VZ_PCM_FRAC_ONE),
-             (unsigned)write, (unsigned)readPos,
-             (int)VZPCMSerialDelta(write, readPos),
-             ctx->ratio, producedAny ? 1 : 0);
 }
 
 #pragma mark - Player
@@ -570,11 +537,6 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
 @property(nonatomic, retain) AVAudioFormat *format;
 @property(nonatomic, assign) BOOL streamConfigured;
 @property(nonatomic, assign) BOOL rebuildPending;
-
-// Published right after each ring write so the HUD shows the backlog the
-// newest PCM block produced, rather than a random instant during consumption.
-@property(atomic, assign) double debugQueuedMilliseconds;
-@property(atomic, assign) double debugBufferFillRatio;
 
 // C structures owned by the state queue but read lock-free by the IO queue
 // (ring) and the render thread (ring + context).
@@ -665,8 +627,6 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
 
     self.listenFD = fd;
     self.running = YES;
-    printf("[VirtualMac] PCM hook listening on %s\n",
-           self.socketPath.UTF8String);
     dispatch_async(self.ioQueue, ^{ [self acceptLoop]; });
     return YES;
 }
@@ -729,11 +689,9 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
         self.clientFD = client;
         int rcvbuf = 256 * 1024;
         setsockopt(client, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
-        printf("[VirtualMac] PCM hook VMM connected\n");
         [self readLoop:client];
         close(client);
         self.clientFD = -1;
-        printf("[VirtualMac] PCM hook VMM disconnected\n");
     }
 }
 
@@ -802,7 +760,6 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
     // If the consumer already drained the ring, pad 10 ms of silence before
     // appending so this write ends at a usable peak instead of restarting from
     // zero. Steady state never triggers this (the sawtooth floor is above 0).
-    BOOL paddedSilence = NO;
     if (_format && _format.sampleRate > 0.0) {
         uint32_t write = __atomic_load_n(&ring->writeFrames, __ATOMIC_ACQUIRE);
         uint32_t read = __atomic_load_n(&ring->readFrames, __ATOMIC_ACQUIRE);
@@ -810,42 +767,9 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
             uint32_t silenceFrames =
                 (uint32_t)(_format.sampleRate * VZ_PCM_PREPAD_SECONDS);
             VZPCMRingPushSilence(ring, silenceFrames);
-            paddedSilence = YES;
         }
     }
-    uint32_t writtenFrames = VZPCMRingPush(ring, bytes, length);
-    [self publishDebugSnapshot:ring];
-
-    uint32_t requestedFrames = ring->wireBytesPerFrame
-        ? length / ring->wireBytesPerFrame : 0;
-    uint32_t write = __atomic_load_n(&ring->writeFrames, __ATOMIC_ACQUIRE);
-    uint32_t read = __atomic_load_n(&ring->readFrames, __ATOMIC_ACQUIRE);
-    // Log written/requested separately: when the ring is full the request is
-    // entirely dropped, so a signed backlog makes that visible.
-    VZPVMLog("[vz-pcm] produce frames=%u/%u bytes=%u write=%u read=%u "
-             "backlog=%d pad=%d",
-             writtenFrames, requestedFrames, length,
-             (unsigned)write, (unsigned)read,
-             (int)VZPCMSerialDelta(write, read),
-             paddedSilence ? 1 : 0);
-}
-
-// Snapshot the backlog immediately after a write. Sampling from the HUD timer
-// instead would often catch the ring just after a render drain and always show
-// a nearly-empty buffer, which makes the numbers useless for judging latency
-// or overflow.
-- (void)publishDebugSnapshot:(VZPCMRing *)ring
-{
-    AVAudioFormat *format = _format;
-    if (!format || format.sampleRate <= 0.0)
-        return;
-    uint32_t write = __atomic_load_n(&ring->writeFrames, __ATOMIC_ACQUIRE);
-    uint32_t read = __atomic_load_n(&ring->readFrames, __ATOMIC_ACQUIRE);
-    int32_t backlog = VZPCMSerialDelta(write, read);
-    double frames = backlog > 0 ? (double)backlog : 0.0;
-    self.debugQueuedMilliseconds = frames / format.sampleRate * 1000.0;
-    self.debugBufferFillRatio = ring->capacityFrames
-        ? frames / (double)ring->capacityFrames : 0.0;
+    VZPCMRingPush(ring, bytes, length);
 }
 
 // Playback depth traded against latency. The target is expressed in VzCore
@@ -932,7 +856,6 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
     context->mask = ring->mask;
     context->cursor = 0;
     context->cursorValid = false;
-    context->lastRatioMicro = 1000000u;
     context->sampleRate = setup->sample_rate;
     context->targetFrames =
         [self targetFramesForCurrentRouteWithSampleRate:setup->sample_rate];
@@ -969,8 +892,6 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
     [session setActive:YES error:&error];
 
     if (![self createEngineLocked:&error]) {
-        printf("[VirtualMac] PCM hook engine start failed: %s\n",
-               error.localizedDescription.UTF8String);
         [format release];
         self.ring = NULL;
         self.renderContext = NULL;
@@ -996,11 +917,6 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
                selector:@selector(handleMediaServicesReset:)
                    name:AVAudioSessionMediaServicesWereResetNotification
                  object:nil];
-
-    printf("[VirtualMac] PCM hook playing %.0f Hz %u ch (%s wire, planar "
-           "engine, pull)\n",
-           setup->sample_rate, channels,
-           sourceInterleaved ? "interleaved" : "planar");
 }
 
 - (BOOL)createEngineLocked:(NSError **)error
@@ -1131,12 +1047,8 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
         // write is safe. Resume from the current producer edge.
         if (self.renderContext)
             self.renderContext->cursorValid = false;
-        if ([self.engine startAndReturnError:&error]) {
-            printf("[VirtualMac] PCM hook engine restarted\n");
+        if ([self.engine startAndReturnError:&error])
             return;
-        }
-        printf("[VirtualMac] PCM hook engine restart failed: %s; rebuilding\n",
-               error.localizedDescription.UTF8String);
         [self.engine stop];
         self.sourceNode = nil;
         self.engine = nil;
@@ -1144,13 +1056,7 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
 
     if (self.renderContext)
         self.renderContext->cursorValid = false;
-    if ([self createEngineLocked:&error]) {
-        printf("[VirtualMac] PCM hook engine rebuilt running=%d\n",
-               self.engine.isRunning);
-    } else {
-        printf("[VirtualMac] PCM hook engine rebuild failed: %s\n",
-               error.localizedDescription.UTF8String);
-    }
+    [self createEngineLocked:&error];
 }
 
 - (void)handleInterruption:(NSNotification *)notification
@@ -1187,24 +1093,11 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
     });
 }
 
-#pragma mark - Debug HUD
-
-// debugQueuedMilliseconds and debugBufferFillRatio are synthesized from the
-// snapshots published by publishDebugSnapshot: after each ring write.
+#pragma mark - State
 
 - (BOOL)playing
 {
     return self.engine.isRunning;
-}
-
-- (float)debugPlaybackRate
-{
-    VZPCMRenderContext *context =
-        __atomic_load_n(&_renderContext, __ATOMIC_ACQUIRE);
-    if (!context)
-        return 1.0f;
-    return (float)__atomic_load_n(&context->lastRatioMicro, __ATOMIC_RELAXED) /
-        1000000.0f;
 }
 
 @end

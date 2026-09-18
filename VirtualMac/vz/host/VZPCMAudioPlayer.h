@@ -24,11 +24,6 @@ NS_ASSUME_NONNULL_BEGIN
 // capture stops.
 @property(atomic, readonly) BOOL playing;
 
-// Live buffer state for the on-screen debug HUD.
-@property(readonly) double debugQueuedMilliseconds;
-@property(readonly) double debugBufferFillRatio;
-@property(readonly) float debugPlaybackRate;
-
 @end
 
 NS_ASSUME_NONNULL_END

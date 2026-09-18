@@ -607,7 +607,6 @@ static void VZEnumerateDiagnosticEntries(VZDiagnosticEntryHandler handler)
 
     NSArray *logNames = @[@"VirtualMac.log", @"vmmhook.log",
         @"vmm.stderr.log", @"vzxpchook.log", @"pvg-trace.log",
-        @"VZPVM.log",
         @"InternetSharing.stdout.log", @"InternetSharing.stderr.log",
         @"bootpd.stdout.log", @"bootpd.stderr.log",
         @"InternetSharing.out", @"InternetSharing.err",
