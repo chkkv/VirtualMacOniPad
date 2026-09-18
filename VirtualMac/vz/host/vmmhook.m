@@ -1151,6 +1151,11 @@ extern vz_os_status AudioQueueDispose(vz_audio_queue_ref, uint8_t);
 // input mapping, regardless of definition order.
 static void pcm_input_forget(vz_audio_queue_ref aq);
 static bool pcm_input_is_queue(vz_audio_queue_ref aq);
+static void pcm_input_set_wanted(bool wanted);
+// The VMM's own AVAudioSession, activated only while the guest captures so an
+// idle input bridge does not keep mediaserverd awake.
+static id g_vmm_audio_session;
+static void vmm_audio_session_set_active(bool active);
 
 // Route B replaces the real AudioQueue with a clock we drive ourselves. This
 // bypasses ClientAudioQueue entirely, so the native 4096-frame block layout
@@ -1634,9 +1639,17 @@ static vz_os_status vmm_AudioQueueFreeBuffer(
 
 static vz_os_status vmm_AudioQueueStart(vz_audio_queue_ref inAQ,
                                         const void *inStartTime) {
-    (void)inStartTime;
     if (is_virtual_aq(inAQ))
         return vz_vaq_start((vz_vaq *)inAQ);
+    if (pcm_input_is_queue(inAQ)) {
+        // The guest only starts recording now. Activate the session first so
+        // the real input queue can start, then let the app begin capturing.
+        pcm_input_set_wanted(true);
+        vz_os_status status = AudioQueueStart(inAQ, inStartTime);
+        if (status != 0)
+            pcm_input_set_wanted(false);
+        return status;
+    }
     return AudioQueueStart(inAQ, inStartTime);
 }
 
@@ -1644,12 +1657,22 @@ static vz_os_status vmm_AudioQueueStop(vz_audio_queue_ref inAQ,
                                        uint8_t inImmediate) {
     if (is_virtual_aq(inAQ))
         return vz_vaq_stop((vz_vaq *)inAQ);
+    if (pcm_input_is_queue(inAQ)) {
+        vz_os_status status = AudioQueueStop(inAQ, inImmediate);
+        pcm_input_set_wanted(false);
+        return status;
+    }
     return AudioQueueStop(inAQ, inImmediate);
 }
 
 static vz_os_status vmm_AudioQueuePause(vz_audio_queue_ref inAQ) {
     if (is_virtual_aq(inAQ))
         return vz_vaq_pause((vz_vaq *)inAQ);
+    if (pcm_input_is_queue(inAQ)) {
+        vz_os_status status = AudioQueuePause(inAQ);
+        pcm_input_set_wanted(false);
+        return status;
+    }
     return AudioQueuePause(inAQ);
 }
 
@@ -1747,10 +1770,10 @@ static size_t pcm_input_ring_count;
 static pthread_mutex_t pcm_input_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t pcm_input_thread;
 static bool pcm_input_thread_started;
-// Number of live input AudioQueues and whether the app should be capturing.
-// When the guest disposes its last input queue the socket is dropped so the app
-// stops the microphone instead of streaming into an unused ring.
-static int pcm_input_active;
+// Whether the guest actually wants capture right now. VzCore creates its input
+// AudioQueue with the VM but only calls AudioQueueStart when the guest begins
+// recording, so this follows Start/Stop rather than New/Dispose: the app (and
+// mediaserverd) stay idle until the guest genuinely needs the microphone.
 static bool pcm_input_wanted;
 
 typedef struct {
@@ -1763,20 +1786,40 @@ typedef struct {
 static vz_input_entry g_input_entries[VZ_PCM_IN_ENTRIES];
 static pthread_mutex_t g_input_entry_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static void pcm_input_activate(void) {
-    pthread_mutex_lock(&pcm_input_lock);
-    pcm_input_active++;
-    pcm_input_wanted = true;
-    pthread_mutex_unlock(&pcm_input_lock);
+static void vmm_audio_session_set_active(bool active) {
+    Class cls = objc_getClass("AVAudioSession");
+    if (!cls)
+        return;
+    if (!g_vmm_audio_session)
+        g_vmm_audio_session = ((id(*)(id, SEL))objc_msgSend)(
+            (id)cls, sel_registerName("sharedInstance"));
+    if (!g_vmm_audio_session)
+        return;
+    id error = nil;
+    ((BOOL(*)(id, SEL, BOOL, id *))objc_msgSend)(g_vmm_audio_session,
+        sel_registerName("setActive:error:"), active ? YES : NO, &error);
 }
 
-static void pcm_input_deactivate(void) {
+static void pcm_input_set_wanted(bool wanted) {
     pthread_mutex_lock(&pcm_input_lock);
-    pcm_input_wanted = false;
-    // Wake a blocked reader; it drops the connection so the app stops capture.
-    if (pcm_input_fd >= 0)
-        shutdown(pcm_input_fd, SHUT_RDWR);
+    if (pcm_input_wanted == wanted) {
+        pthread_mutex_unlock(&pcm_input_lock);
+        return;
+    }
+    pcm_input_wanted = wanted;
+    if (!wanted) {
+        // Wake a blocked reader; it drops the connection so the app stops its
+        // capture engine (and mediaserverd) instead of recording unused audio.
+        if (pcm_input_fd >= 0)
+            shutdown(pcm_input_fd, SHUT_RDWR);
+    }
     pthread_mutex_unlock(&pcm_input_lock);
+    // With the virtual output queue the VMM has no other CoreAudio client, so
+    // its session can follow capture. A real output queue (route A) owns the
+    // session itself and must not be disturbed.
+    if (pcm_virtual_enabled)
+        vmm_audio_session_set_active(wanted);
+    logf_("[vmmhook] pcm input %s", wanted ? "started" : "stopped");
 }
 
 static void pcm_input_ring_ensure_locked(void) {
@@ -1946,7 +1989,6 @@ static vz_os_status vmm_AudioQueueNewInput(
     vz_os_status status = AudioQueueNewInput(inFormat, vmm_input_callback,
         inUserData, inCallbackRunLoop, inCallbackRunLoopMode, inFlags, outAQ);
     if (pcm_input_enabled && status == 0 && outAQ && *outAQ && inCallback) {
-        bool added = false;
         pthread_mutex_lock(&g_input_entry_lock);
         for (int i = 0; i < VZ_PCM_IN_ENTRIES; i++) {
             if (!g_input_entries[i].in_use) {
@@ -1954,13 +1996,10 @@ static vz_os_status vmm_AudioQueueNewInput(
                 g_input_entries[i].callback = inCallback;
                 g_input_entries[i].user_data = inUserData;
                 g_input_entries[i].in_use = 1;
-                added = true;
                 break;
             }
         }
         pthread_mutex_unlock(&g_input_entry_lock);
-        if (added)
-            pcm_input_activate();
     }
     return status;
 }
@@ -2015,22 +2054,23 @@ static bool pcm_input_is_queue(vz_audio_queue_ref aq) {
 static void pcm_input_forget(vz_audio_queue_ref aq) {
     if (!aq)
         return;
-    bool empty = false;
+    bool any = false;
     pthread_mutex_lock(&g_input_entry_lock);
     for (int i = 0; i < VZ_PCM_IN_ENTRIES; i++) {
         if (g_input_entries[i].in_use && g_input_entries[i].aq == aq) {
             g_input_entries[i].in_use = 0;
-            pthread_mutex_lock(&pcm_input_lock);
-            if (pcm_input_active > 0)
-                pcm_input_active--;
-            empty = pcm_input_active == 0;
-            pthread_mutex_unlock(&pcm_input_lock);
+            break;
+        }
+    }
+    for (int i = 0; i < VZ_PCM_IN_ENTRIES; i++) {
+        if (g_input_entries[i].in_use) {
+            any = true;
             break;
         }
     }
     pthread_mutex_unlock(&g_input_entry_lock);
-    if (empty)
-        pcm_input_deactivate();
+    if (!any)
+        pcm_input_set_wanted(false);
 }
 
 static void pcm_input_disconnect(const char *reason) {
@@ -4027,10 +4067,21 @@ __attribute__((constructor)) static void hook_init(void) {
         ((BOOL(*)(id, SEL, double, id *))objc_msgSend)(
             audioSession, sel_registerName("setPreferredSampleRate:error:"),
             48000, &audioError);
-    BOOL activeOK = audioSession &&
-        ((BOOL(*)(id, SEL, BOOL, id *))objc_msgSend)(
-            audioSession, sel_registerName("setActive:error:"), YES,
-            &audioError);
+    // With the virtual output queue and input bridging, the VMM has no
+    // CoreAudio client until the guest records, so leave the session inactive
+    // and let AudioQueueStart activate it on demand. Any other combination
+    // (native audio, or a real output queue) keeps the eager activation.
+    BOOL deferActive = pcm_input_enabled && pcm_virtual_enabled;
+    BOOL activeOK = NO;
+    if (deferActive) {
+        activeOK = YES;
+    } else {
+        activeOK = audioSession &&
+            ((BOOL(*)(id, SEL, BOOL, id *))objc_msgSend)(
+                audioSession, sel_registerName("setActive:error:"), YES,
+                &audioError);
+    }
+    g_vmm_audio_session = audioSession;
     NSUInteger permission = audioSession
         ? ((NSUInteger(*)(id, SEL))objc_msgSend)(
               audioSession, sel_registerName("recordPermission")) : 0;

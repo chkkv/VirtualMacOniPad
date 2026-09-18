@@ -5354,6 +5354,17 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
         NSString *inputPath = VZPCMAudioCapture.defaultSocketPath;
         gPCMCapture = [[VZPCMAudioCapture alloc]
             initWithSocketPath:inputPath];
+        // Release the shared session once the guest stops recording, so an
+        // idle capture graph does not keep mediaserverd awake. Playback keeps
+        // the session alive on its own.
+        gPCMCapture.captureStateHandler = ^(BOOL capturing) {
+            if (capturing || gPCMPlayer.playing)
+                return;
+            [[AVAudioSession sharedInstance] setActive:NO
+                withOptions:
+                    AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+                error:nil];
+        };
         NSError *captureError = nil;
         if ([gPCMCapture startWithError:&captureError]) {
             setenv("VZ_ALLOW_PCM_INPUT", "1", 1);

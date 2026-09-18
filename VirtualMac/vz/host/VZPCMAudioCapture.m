@@ -224,7 +224,10 @@ static void VZPCMCaptureEncode(float * const *planes,
 
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 
-    dispatch_sync(self.stateQueue, ^{ [self stopEngineLocked]; });
+    dispatch_sync(self.stateQueue, ^{
+        [self stopEngineLocked];
+        [self notifyCaptureState:NO];
+    });
     dispatch_sync(self.ioQueue, ^{ });
 
     if (self.clientFD >= 0) {
@@ -263,6 +266,7 @@ static void VZPCMCaptureEncode(float * const *planes,
         self.clientFD = -1;
         dispatch_sync(self.stateQueue, ^{
             [self stopEngineLocked];
+            [self notifyCaptureState:NO];
         });
         printf("[VirtualMac] PCM input VMM disconnected\n");
     }
@@ -477,6 +481,7 @@ static void VZPCMCaptureEncode(float * const *planes,
     self.engine = engine;
     [engine release];
     self.streamConfigured = YES;
+    [self notifyCaptureState:YES];
 
     NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
     [center removeObserver:self];
@@ -508,6 +513,14 @@ static void VZPCMCaptureEncode(float * const *planes,
     self.converter = nil;
     self.converterOutputFormat = nil;
     self.streamConfigured = NO;
+}
+
+// Reports capture start/stop to the owner. Runs on the state queue.
+- (void)notifyCaptureState:(BOOL)capturing
+{
+    void (^handler)(BOOL) = self.captureStateHandler;
+    if (handler)
+        handler(capturing);
 }
 
 #pragma mark - Device changes

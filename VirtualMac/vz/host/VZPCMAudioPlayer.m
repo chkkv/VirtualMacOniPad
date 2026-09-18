@@ -1192,6 +1192,11 @@ static void VZPCMRenderFrames(VZPCMRenderContext *ctx,
 // debugQueuedMilliseconds and debugBufferFillRatio are synthesized from the
 // snapshots published by publishDebugSnapshot: after each ring write.
 
+- (BOOL)playing
+{
+    return self.engine.isRunning;
+}
+
 - (float)debugPlaybackRate
 {
     VZPCMRenderContext *context =

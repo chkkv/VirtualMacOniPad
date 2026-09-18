@@ -23,6 +23,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property(atomic, readonly) BOOL running;
 
+// Invoked on the capture state queue when capture starts (YES) or stops (NO).
+// The app uses it to release the shared audio session once the guest stops
+// recording, so mediaserverd is not kept awake by an idle capture graph.
+@property(nonatomic, copy, nullable) void (^captureStateHandler)(BOOL capturing);
+
 @end
 
 NS_ASSUME_NONNULL_END
