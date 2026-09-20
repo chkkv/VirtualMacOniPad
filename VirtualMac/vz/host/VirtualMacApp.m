@@ -17,6 +17,8 @@
 #import "VZGuestTools.h"
 #import "VZGuestRuntimePolicy.h"
 #import "VZTrackpadScrollBridge.h"
+#import "VZPCMAudioPlayer.h"
+#import "VZPCMAudioCapture.h"
 #include <dlfcn.h>
 #include <objc/runtime.h>
 #include <objc/message.h>
@@ -83,6 +85,21 @@ static void setVMJetsamProtection(BOOL active)
 
 static id gVirtualMachine;
 static id gVirtualMachineDelegate;
+static VZPCMAudioPlayer *gPCMPlayer;
+static VZPCMAudioCapture *gPCMCapture;
+
+// Releases the shared audio session once neither playback nor capture is
+// rendering, so an idle graph does not keep mediaserverd awake. Called from the
+// player's and capture's state handlers on their own queues.
+static void VZPCMDeactivateAudioSessionIfIdle(void)
+{
+    if (gPCMCapture.capturing || gPCMPlayer.playing)
+        return;
+    [[AVAudioSession sharedInstance] setActive:NO
+        withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+        error:nil];
+}
+
 static UIView *gFramebufferView;
 static id gFramebuffer;
 static id gKeyboard;
@@ -4148,6 +4165,16 @@ static void VZWriteInstallationAttempt(NSString *attemptPath, NSString *state,
     gFramebufferView = nil;
     [gVirtualMachine release];
     gVirtualMachine = nil;
+    if (gPCMPlayer) {
+        [gPCMPlayer stop];
+        [gPCMPlayer release];
+        gPCMPlayer = nil;
+    }
+    if (gPCMCapture) {
+        [gPCMCapture stop];
+        [gPCMCapture release];
+        gPCMCapture = nil;
+    }
     gVideoMemoryAlertPresented = NO;
     gVirtualMachineDelegate = nil;
     gKeyboard = nil;
@@ -4576,6 +4603,11 @@ static void configureAudio(id configuration, NSDictionary *options) {
     // stream attachments. Use the same path for playback and microphone input.
     BOOL outputEnabled = [options[@"AudioOutputEnabled"] boolValue];
     BOOL inputEnabled = [options[@"AudioInputEnabled"] boolValue];
+    // PCM Hook replaces the legacy output path. The virtio input stream is
+    // still needed so the guest enumerates a microphone, but its samples come
+    // from the app through the PCM input bridge instead of VZHostAudioInputStreamSource.
+    if ([VZAppSettings.sharedSettings boolForKey:VZPCMHookKey])
+        inputEnabled = [VZAppSettings.sharedSettings boolForKey:VZPCMInputKey];
     if (!outputEnabled && !inputEnabled) {
         printf("[VirtualMac] audio disabled by VM configuration\n");
         return;
@@ -4664,6 +4696,16 @@ static void configureVideoToolbox(id configuration, NSDictionary *options) {
 #endif
 
 static void requestMicrophoneAccess(dispatch_block_t continuation) {
+    // PCM Hook abandons the legacy capture/output path: guest audio is routed
+    // to VZPCMAudioPlayer with a Playback session. Do not activate or claim
+    // the microphone here, otherwise the app would still take over audio at
+    // launch even though no input stream is used. PCM Input still needs the
+    // microphone, so only skip when input is off.
+    if ([VZAppSettings.sharedSettings boolForKey:VZPCMHookKey] &&
+        ![VZAppSettings.sharedSettings boolForKey:VZPCMInputKey]) {
+        continuation();
+        return;
+    }
     AVAudioSession *session = AVAudioSession.sharedInstance;
     AVAudioSessionRecordPermission permission = session.recordPermission;
     printf("[VirtualMac] microphone permission before request=%lu\n",
@@ -5224,6 +5266,77 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
         [VZAppSettings.sharedSettings boolForKey:VZBluetoothAudioRoutingKey];
     setenv("VZ_ALLOW_BLUETOOTH", allowBluetoothAudio ? "1" : "0", 1);
 
+    // PCM Hook: host the AF_UNIX socket and hand its path to the VMM. When on,
+    // VzCore's AudioQueue backend forwards raw PCM here instead of playing, and
+    // the app plays it through the standard AVFoundation playback path.
+    if (gPCMPlayer) {
+        [gPCMPlayer stop];
+        [gPCMPlayer release];
+        gPCMPlayer = nil;
+    }
+    BOOL pcmHook = [VZAppSettings.sharedSettings boolForKey:VZPCMHookKey];
+    if (pcmHook) {
+        NSString *pcmPath = VZPCMAudioPlayer.defaultSocketPath;
+        gPCMPlayer = [[VZPCMAudioPlayer alloc] initWithSocketPath:pcmPath];
+        // Playback tears its engine down after a short idle period; release the
+        // shared session then unless the microphone is still capturing.
+        gPCMPlayer.playbackStateHandler = ^(BOOL playing) {
+            if (!playing)
+                VZPCMDeactivateAudioSessionIfIdle();
+        };
+        if ([gPCMPlayer startWithError:NULL]) {
+            BOOL virtualAudio = [VZAppSettings.sharedSettings
+                boolForKey:VZPCMVirtualAudioKey];
+            setenv("VZ_ALLOW_PCM_HOOK", "1", 1);
+            setenv("VZ_PCM_VIRTUAL_AQ", virtualAudio ? "1" : "0", 1);
+            setenv("VZ_PCM_SOCKET", pcmPath.UTF8String, 1);
+        } else {
+            [gPCMPlayer release];
+            gPCMPlayer = nil;
+            pcmHook = NO;
+        }
+    }
+    if (!pcmHook) {
+        setenv("VZ_ALLOW_PCM_HOOK", "0", 1);
+        unsetenv("VZ_PCM_SOCKET");
+    }
+
+    // PCM Input: host the microphone socket and hand its path to the VMM. The
+    // VMM's AudioQueue input hook asks for a capture format, and this app
+    // streams microphone audio in that format through the standard AVFoundation
+    // capture stack. Only meaningful together with the PCM output hook.
+    if (gPCMCapture) {
+        [gPCMCapture stop];
+        [gPCMCapture release];
+        gPCMCapture = nil;
+    }
+    BOOL pcmInput = pcmHook &&
+        [VZAppSettings.sharedSettings boolForKey:VZPCMInputKey];
+    if (pcmInput) {
+        NSString *inputPath = VZPCMAudioCapture.defaultSocketPath;
+        gPCMCapture = [[VZPCMAudioCapture alloc]
+            initWithSocketPath:inputPath];
+        // Release the shared session once the guest stops recording, so an
+        // idle capture graph does not keep mediaserverd awake. Playback keeps
+        // the session alive on its own.
+        gPCMCapture.captureStateHandler = ^(BOOL capturing) {
+            if (!capturing)
+                VZPCMDeactivateAudioSessionIfIdle();
+        };
+        if ([gPCMCapture startWithError:NULL]) {
+            setenv("VZ_ALLOW_PCM_INPUT", "1", 1);
+            setenv("VZ_PCM_INPUT_SOCKET", inputPath.UTF8String, 1);
+        } else {
+            [gPCMCapture release];
+            gPCMCapture = nil;
+            pcmInput = NO;
+        }
+    }
+    if (!pcmInput) {
+        setenv("VZ_ALLOW_PCM_INPUT", "0", 1);
+        unsetenv("VZ_PCM_INPUT_SOCKET");
+    }
+
     setStatus(VZL(@"Loading extracted Apple virtualization frameworks…"));
     BOOL guestToolsEnabled =
         [options[VZVirtualMacGuestToolsEnabledKey] boolValue];
@@ -5501,8 +5614,8 @@ static NSDictionary *runtimeDisplayOptions(NSDictionary *options,
 }
 
 static void startVirtualMachine(UIView *container, id delegate,
-                                NSString *bundlePath,
-                                NSDictionary *options) {
+                                 NSString *bundlePath,
+                                 NSDictionary *options) {
     NSDictionary *runtimeOptions = runtimeDisplayOptions(options, container);
     // Ventura's VZ startup performs synchronous XPC and device construction.
     // On iPadOS 14, doing that from a tap blocks UIKit long enough to trip the
