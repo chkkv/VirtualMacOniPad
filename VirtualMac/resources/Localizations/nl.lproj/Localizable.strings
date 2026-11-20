@@ -156,6 +156,7 @@
 "Name" = "Naam";
 "Name Already Used" = "Naam al in gebruik";
 "NAT: Share %@" = "NAT: deel %@";
+"Native Touch" = "Native aanraakinvoer";
 "Network" = "Netwerk";
 "Network Attachment" = "Netwerkverbinding";
 "Network Bridge (%@)" = "Netwerkbrug (%@)";
@@ -170,6 +171,7 @@
 "On My iPhone" = "Op mijn iPhone";
 "Only about %llu GB is currently available. The disk image is sparse, but installation or later use can fail when storage fills up." = "Er is momenteel slechts ongeveer %llu GB beschikbaar. De schijfimage is dynamisch, maar de installatie of het latere gebruik kan mislukken als de opslag vol raakt.";
 "Open Control Center and start Screen Recording, then reproduce the problem." = "Open het bedieningspaneel, start een schermopname en reproduceer vervolgens het probleem.";
+"Open Gamepad Script Folder" = "Map met gamepadscript openen";
 "OpenGL Acceleration" = "OpenGL-versnelling";
 "OpenGL Acceleration Is Off" = "OpenGL-versnelling is uitgeschakeld";
 "OpenGL Acceleration requires macOS Sonoma or later." = "OpenGL-versnelling vereist macOS Sonoma of nieuwer.";

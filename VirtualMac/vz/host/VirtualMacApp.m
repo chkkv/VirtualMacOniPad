@@ -10,6 +10,7 @@
 #import "VZAppSettings.h"
 #import "VZDiagnostics.h"
 #import "VZFailureDetailsViewController.h"
+#import "VZGamepadBridge.h"
 #import "VZProgressViewController.h"
 #import "VZSettingsViewController.h"
 #import "VZLocalization.h"
@@ -17,6 +18,8 @@
 #import "VZGuestTools.h"
 #import "VZGuestRuntimePolicy.h"
 #import "VZTrackpadScrollBridge.h"
+#import "VZNativeTouchIdentity.h"
+#import "VZNativeTouchInput.h"
 #include <dlfcn.h>
 #include <objc/runtime.h>
 #include <objc/message.h>
@@ -88,6 +91,8 @@ static id gFramebuffer;
 static id gKeyboard;
 static id gPointingDevice;
 static UIView *gInputView;
+static VZNativeTouchInput *gNativeTouch;
+static void applyNativeTouchGesturePolicy(void);
 static UIView *gDisplayContainer;
 static CALayer *gDisplayLayer;
 static UIImageView *gCursorView;
@@ -136,6 +141,7 @@ static NSUInteger gPendingScrollDeviceCategory;
 static CADisplayLink *gScrollDisplayLink;
 static uint64_t gLastHealthReceivedCount;
 static BOOL gDebugLogging;
+static VZGamepadBridge *gGamepadBridge;
 static BOOL gFixExternalDisplayScrollDirection;
 static CGFloat gScrollingSpeed = 0.25;
 static BOOL gShowCursorWhenUsingTouch = YES;
@@ -199,6 +205,17 @@ static void resetScrollDiagnostics(void);
 static UIWindow *gExternalWindow;
 static UIView *gExternalMirrorView;
 static UIImageView *gExternalCursorView;
+
+static void applyNativeTouchGesturePolicy(void) {
+    BOOL scroll = [VZAppSettings.sharedSettings boolForKey:VZTouchTwoFingerScrollingKey];
+    gTouchScrollRecognizer.enabled = scroll && !gNativeTouch;
+    NSArray *allowed = (scroll || gNativeTouch)
+        ? @[@(UITouchTypeIndirectPointer)]
+        : @[@(UITouchTypeDirect), @(UITouchTypeIndirectPointer)];
+    gPinchRecognizer.allowedTouchTypes = allowed;
+    gRotationRecognizer.allowedTouchTypes = allowed;
+    gSmartMagnifyRecognizer.allowedTouchTypes = allowed;
+}
 
 static CGRect displayViewportRect(CGSize contentSize, CGRect bounds);
 static void updateDisplayGeometry(void);
@@ -1890,6 +1907,7 @@ static void sendSoftwareKey(UIKeyboardHIDUsage usage, BOOL shifted);
     BOOL _vzPencilHoverActive;
     BOOL _vzSuppressIndirectPointerClick;
 }
+- (void)resetDeferredDirectTouch;
 @end
 
 @implementation VZInputView
@@ -2012,6 +2030,7 @@ static void sendSoftwareKey(UIKeyboardHIDUsage usage, BOOL shifted);
 
 - (BOOL)resignFirstResponder
 {
+    [gNativeTouch cancelAll];
     [self releaseSoftwareModifiers];
     return [super resignFirstResponder];
 }
@@ -2807,6 +2826,14 @@ static bool pencilVsockSend(uint8_t type, float pressure,
 - (void)touchesBegan:(NSSet<UITouch *> *)touches
            withEvent:(UIEvent *)event
 {
+    if (gNativeTouch) {
+        [gNativeTouch handleTouches:touches inView:self
+            viewport:displayViewportRect(gDisplayPixelSize, self.bounds)];
+        touches = [touches objectsPassingTest:^BOOL(UITouch *t, BOOL *stop) {
+            (void)stop; return t.type != UITouchTypeDirect;
+        }];
+        if (!touches.count) return;
+    }
     UITouch *touch = [touches anyObject];
     if (touch)
         notePointerInputSource(touch.type == UITouchTypeDirect);
@@ -2895,6 +2922,14 @@ static bool pencilVsockSend(uint8_t type, float pressure,
 - (void)touchesMoved:(NSSet<UITouch *> *)touches
            withEvent:(UIEvent *)event
 {
+    if (gNativeTouch) {
+        [gNativeTouch handleTouches:touches inView:self
+            viewport:displayViewportRect(gDisplayPixelSize, self.bounds)];
+        touches = [touches objectsPassingTest:^BOOL(UITouch *t, BOOL *stop) {
+            (void)stop; return t.type != UITouchTypeDirect;
+        }];
+        if (!touches.count) return;
+    }
     UITouch *touch = [touches anyObject];
     if (touch.type == UITouchTypeDirect && [self usesDeferredDirectTouchClicks]) {
         [self moveDeferredDirectTouches:touches withEvent:event];
@@ -2951,6 +2986,14 @@ static bool pencilVsockSend(uint8_t type, float pressure,
 - (void)touchesEnded:(NSSet<UITouch *> *)touches
            withEvent:(UIEvent *)event
 {
+    if (gNativeTouch) {
+        [gNativeTouch handleTouches:touches inView:self
+            viewport:displayViewportRect(gDisplayPixelSize, self.bounds)];
+        touches = [touches objectsPassingTest:^BOOL(UITouch *t, BOOL *stop) {
+            (void)stop; return t.type != UITouchTypeDirect;
+        }];
+        if (!touches.count) return;
+    }
     // type=2 (proximity_leave): Pencil lifted off screen.
     // Pressure is 0 because the pen is no longer touching.
     // altitude=π/2 (perpendicular): the pen has no meaningful tilt
@@ -3001,6 +3044,14 @@ static bool pencilVsockSend(uint8_t type, float pressure,
 - (void)touchesCancelled:(NSSet<UITouch *> *)touches
                withEvent:(UIEvent *)event
 {
+    if (gNativeTouch) {
+        [gNativeTouch handleTouches:touches inView:self
+            viewport:displayViewportRect(gDisplayPixelSize, self.bounds)];
+        touches = [touches objectsPassingTest:^BOOL(UITouch *t, BOOL *stop) {
+            (void)stop; return t.type != UITouchTypeDirect;
+        }];
+        if (!touches.count) return;
+    }
     UITouch *touch = [touches anyObject];
     if (touch.type == UITouchTypeDirect && [self usesDeferredDirectTouchClicks]) {
         [self cancelDeferredDirectTouches:touches withEvent:event];
@@ -3226,17 +3277,7 @@ static bool pencilVsockSend(uint8_t type, float pressure,
     [(VZHUDView *)gHUDView refreshMenu];
     [self updateHUDVisibility];
     updateDisplayGeometry();
-    if (gTouchScrollRecognizer) {
-        BOOL enabled = [VZAppSettings.sharedSettings
-            boolForKey:VZTouchTwoFingerScrollingKey];
-        gTouchScrollRecognizer.enabled = enabled;
-        NSArray *allowed = enabled ? @[@(UITouchTypeIndirectPointer)]
-                                   : @[@(UITouchTypeDirect),
-                                       @(UITouchTypeIndirectPointer)];
-        gPinchRecognizer.allowedTouchTypes = allowed;
-        gRotationRecognizer.allowedTouchTypes = allowed;
-        gSmartMagnifyRecognizer.allowedTouchTypes = allowed;
-    }
+    applyNativeTouchGesturePolicy();
 }
 
 - (void)updateHUDPosition
@@ -4138,12 +4179,18 @@ static void VZWriteInstallationAttempt(NSString *attemptPath, NSString *state,
 {
     setVMJetsamProtection(NO);
     gSoftwareKeyboardRequested = NO;
+    [gGamepadBridge detachFromVirtualMachine];
     pencilVsockReset();
     disconnectExternalDisplay();
     [gDisplayLayer removeFromSuperlayer];
     gDisplayLayer = nil;
     gDisplayContainer = nil;
     gFramebuffer = nil;
+    [gNativeTouch release];
+    gNativeTouch = nil;
+    applyNativeTouchGesturePolicy();
+    unsetenv("VMM_NATIVE_TOUCH_ENABLED");
+    unsetenv("VMM_NATIVE_TOUCH_UUID");
     [gFramebufferView release];
     gFramebufferView = nil;
     [gVirtualMachine release];
@@ -4162,10 +4209,8 @@ static void VZWriteInstallationAttempt(NSString *attemptPath, NSString *state,
     gCursorView.image = nil;
     gCursorView.hidden = YES;
     gInputView.hidden = YES;
-    gTouchScrollRecognizer = nil;
-    gPinchRecognizer = nil;
-    gRotationRecognizer = nil;
-    gSmartMagnifyRecognizer = nil;
+    // The input view owns these recognizers across VM switches; keep the
+    // non-owning references so the next VM can apply its own touch policy.
     self.activeVMBundlePath = nil;
     [self presentVMLibrary];
     if (error) {
@@ -4979,6 +5024,17 @@ static id makeConfiguration(NSString *bundlePath, NSDictionary *options,
     printf("[VirtualMac] configured pointing device=%s class=%s\n",
            useUSBMouse ? "USB Mouse" : "Mac Trackpad",
            pointing ? object_getClassName(pointing) : "(unavailable)");
+    if ([options[VZNativeTouchEnabledKey] boolValue]) {
+        Class touchClass = NSClassFromString(@"_VZAppleTouchScreenConfiguration");
+        if (!touchClass || ![configuration respondsToSelector:S("_setMultiTouchDevices:")]) {
+            if (error) *error = [NSError errorWithDomain:@"VMMNativeTouch" code:2
+                userInfo:@{NSLocalizedDescriptionKey:@"Native touch configuration is unavailable in this runtime."}];
+            return nil;
+        }
+        id touchscreen = [[[touchClass alloc] init] autorelease];
+        if (!touchscreen) return nil;
+        setObj(configuration, "_setMultiTouchDevices:", @[touchscreen]);
+    }
     configureAudio(configuration, options);
     configureVideoToolbox(configuration, options);
     configureNetwork(configuration, options);
@@ -5000,14 +5056,24 @@ static id makeConfiguration(NSString *bundlePath, NSDictionary *options,
     if (guestToolsEnabled || guestToolsRemovalPending)
         VZGuestToolsConfigureDevice(configuration);
 
-    if ([options[VZApplePencilPressureTiltEnabledKey] boolValue]) {
-        // Do not add a socket device for the default configuration. The
-        // Pencil relay and its host/guest input path are entirely opt-in.
-        id socketDevice = (guestToolsEnabled || guestToolsRemovalPending)
-            ? nil : NEW("VZVirtioSocketDeviceConfiguration");
+    BOOL pencilVsock = [options[VZApplePencilPressureTiltEnabledKey] boolValue];
+    BOOL gamepadRelayEnabled = [VZAppSettings.sharedSettings boolForKey:
+        VZGamepadRelayEnabledKey];
+    NSString *gamepadTransport = [VZAppSettings.sharedSettings stringForKey:
+        VZGamepadTransportKey];
+    BOOL gamepadVsock = gamepadRelayEnabled &&
+        ![gamepadTransport isEqualToString:VZGamepadTransportUDP];
+    if (pencilVsock || gamepadVsock) {
+        // Guest Tools, Pencil and gamepad relay share one Virtio socket device
+        // and distinguish services by port. Never publish duplicate devices.
+        NSArray *socketDevices = [configuration respondsToSelector:
+            S("socketDevices")] ? m0(configuration, "socketDevices") : nil;
+        id socketDevice = socketDevices.count ? nil
+            : NEW("VZVirtioSocketDeviceConfiguration");
         if (socketDevice) {
             setObj(configuration, "setSocketDevices:", @[socketDevice]);
-            printf("[VirtualMac] configured Pencil vsock device\n");
+            printf("[VirtualMac] configured shared vsock device pencil=%d gamepad=%d\n",
+                   pencilVsock, gamepadVsock);
         }
     }
 
@@ -5039,6 +5105,7 @@ static BOOL prepareFramebuffer(UIView *container) {
     id view = ((id(*)(id, SEL, CGRect))objc_msgSend)(
         [framebufferViewClass alloc], S("initWithFrame:"), viewport);
     gFramebufferView = view;
+    if (gNativeTouch) gFramebufferView.userInteractionEnabled = NO;
     gFramebuffer = framebuffer;
     gFramebufferView.backgroundColor = [UIColor blackColor];
     gFramebufferView.autoresizingMask =
@@ -5159,7 +5226,20 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
                                       NSString *bundlePath,
                                       NSDictionary *options) {
     setVMJetsamProtection(YES);
+    unsetenv("VMM_NATIVE_TOUCH_ENABLED");
+    unsetenv("VMM_NATIVE_TOUCH_UUID");
+    if ([options[VZNativeTouchEnabledKey] boolValue]) {
+        NSError *touchError = nil;
+        NSString *uuid = nil;
+        if (VZNativeTouchValidateRuntime(@"/var/root/VirtualMac/payload", &touchError))
+            uuid = VZNativeTouchUUIDForConfiguration(
+                [bundlePath stringByAppendingPathComponent:VZVMConfigurationFileName], &touchError);
+        if (!uuid) { finishVMThreadSafe(delegate, touchError); return; }
+        setenv("VMM_NATIVE_TOUCH_UUID", uuid.UTF8String, 1);
+        setenv("VMM_NATIVE_TOUCH_ENABLED", "1", 1);
+    }
     gShiftPressedMask = 0;
+    [gGamepadBridge detachFromVirtualMachine];
     pencilVsockReset();
     VZGuestToolsReset();
     __atomic_store_n(&gPencilRelayEnabled,
@@ -5280,6 +5360,30 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
            [[pointingDevices description] UTF8String]);
     gKeyboard = [keyboards firstObject];
     gPointingDevice = [pointingDevices firstObject];
+    if ([options[VZNativeTouchEnabledKey] boolValue]) {
+        NSArray *touchDevices = [gVirtualMachine respondsToSelector:S("_multiTouchDevices")]
+            ? m0(gVirtualMachine, "_multiTouchDevices") : nil;
+        id device = touchDevices.firstObject;
+        BOOL available = touchDevices.count == 1 &&
+            [device respondsToSelector:S("sendMultiTouchEvents:")] &&
+            [NSClassFromString(@"_VZTouch") instancesRespondToSelector:S("initWithIndex:phase:location:swipeAim:timestamp:")] &&
+            [NSClassFromString(@"_VZMultiTouchEvent") instancesRespondToSelector:S("initWithTouches:")];
+        if (!available) {
+            NSError *touchError = [NSError errorWithDomain:@"VMMNativeTouch" code:3
+                userInfo:@{NSLocalizedDescriptionKey:@"The VM did not publish the native touchscreen input API."}];
+            finishVMThreadSafe(delegate, touchError); return;
+        }
+        void (^bindTouch)(void) = ^{
+            // Invalidate legacy delayed clicks before native code owns fingers.
+            [(VZInputView *)gInputView resetDeferredDirectTouch];
+            resetPointerSession(YES);
+            [gNativeTouch release];
+            gNativeTouch = [[VZNativeTouchInput alloc] initWithDevice:device];
+            applyNativeTouchGesturePolicy();
+        };
+        if (pthread_main_np()) bindTouch();
+        else dispatch_sync(dispatch_get_main_queue(), bindTouch);
+    }
     dumpRPCHandlers(gVirtualMachine, "after-init");
     // setFramebuffer: installs the process_frame_update handler needed by the
     // VMM. The host hook holds its set_frame_rate message until start succeeds.
@@ -5300,6 +5404,7 @@ static void startVirtualMachineWorker(UIView *container, id delegate,
         dumpRPCHandlers(gVirtualMachine, "after-start");
         setStatus(VZL(@"Virtual Mac running — preparing native PVG display"));
         pencilVsockSetup();
+        [gGamepadBridge attachToVirtualMachine:gVirtualMachine];
         VZGuestToolsStartProvisioning(bundlePath, guestToolsEnabled,
                                       openGLAcceleration,
             [options[VZApplePencilPressureTiltEnabledKey] boolValue],
@@ -5737,6 +5842,7 @@ static void disconnectExternalDisplay(void) {
         smartMagnify.allowedTouchTypes = @[@(UITouchTypeIndirectPointer)];
     }
     [inputView addGestureRecognizer:smartMagnify];
+    applyNativeTouchGesturePolicy();
     [controller.view addSubview:inputView];
 
     gCursorView = [[UIImageView alloc] initWithFrame:CGRectZero];
@@ -5780,6 +5886,8 @@ static void disconnectExternalDisplay(void) {
     gLastInputWasDirectTouch = NO;
     gCursorSuppressedForDirectTouch = NO;
     installGCMouse();
+    gGamepadBridge = [VZGamepadBridge sharedBridge];
+    [gGamepadBridge start];
     startHealthMonitor();
     startControlMonitor();
     printf("[VirtualMac] VM picker ready inputWindow=%p\n", inputView.window);
@@ -5885,13 +5993,16 @@ static void disconnectExternalDisplay(void) {
 - (void)applicationWillResignActive:(UIApplication *)application
 {
     (void)application;
+    [gNativeTouch cancelAll];
     resetPointerSession(YES);
+    [gGamepadBridge setForegroundActive:NO];
 }
 
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
     (void)application;
     resetPointerSession(YES);
+    [gGamepadBridge setForegroundActive:YES];
     if (gInputView) {
         for (id interaction in gInputView.interactions)
             if ([interaction respondsToSelector:@selector(invalidate)])

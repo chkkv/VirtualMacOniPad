@@ -27,6 +27,8 @@ for installer_icon in monterey ventura sonoma sequoia tahoe golden-gate ipsw; do
 done
 need_file "$VZ_REPO_ROOT/vz/host/NSViewShim.m"
 need_file "$VZ_REPO_ROOT/vz/host/VZAppSettings.m"
+need_file "$VZ_REPO_ROOT/vz/host/VZGamepadBridge.m"
+need_file "$VZ_REPO_ROOT/vz/host/VZGamepadSettingsViewController.m"
 need_file "$VZ_REPO_ROOT/vz/host/VZDiagnostics.m"
 need_file "$VZ_REPO_ROOT/vz/host/VZFailureDetailsViewController.m"
 need_file "$VZ_REPO_ROOT/vz/host/VZRestoreCatalog.m"
@@ -59,7 +61,7 @@ cp "$VZ_BUILD_ROOT/guest-tools/VirtualMacGuestTools.tar.gz" \
     "$APP/GuestTools/VirtualMacGuestTools.tar.gz"
 sips -Z 320 "$VZ_REPO_ROOT/assets/VirtualMacTemplate.png" \
     --out "$APP/VirtualMacTemplate.png" >/dev/null
-APP_VERSION="${VZ_RELEASE_VERSION:-1.2.3}"
+APP_VERSION="${VZ_RELEASE_VERSION:-1.2.4}"
 APP_BUILD="$(git -C "$VZ_REPO_ROOT" rev-list --count HEAD)"
 plutil -replace CFBundleShortVersionString -string "$APP_VERSION" \
     "$APP/Info.plist"
@@ -106,11 +108,14 @@ done
 xcrun --sdk iphoneos clang \
     -arch arm64 -miphoneos-version-min="$VZ_IPADOS_MIN_VERSION" -isysroot "$SDK" -fblocks \
     -framework AVFAudio -framework CoreImage -framework Foundation \
-    -framework GameController -framework Metal -framework Security -framework UIKit \
+    -framework GameController -framework Metal -framework QuartzCore \
+    -framework Security -framework UIKit \
     -framework UniformTypeIdentifiers \
     -Wl,-export_dynamic -Wl,-undefined,dynamic_lookup \
     "$VZ_REPO_ROOT/vz/host/NSViewShim.m" \
     "$VZ_REPO_ROOT/vz/host/VZAppSettings.m" \
+    "$VZ_REPO_ROOT/vz/host/VZGamepadBridge.m" \
+    "$VZ_REPO_ROOT/vz/host/VZGamepadSettingsViewController.m" \
     "$VZ_REPO_ROOT/vz/host/VZDiagnostics.m" \
     "$VZ_REPO_ROOT/vz/host/VZFailureDetailsViewController.m" \
     "$VZ_REPO_ROOT/vz/host/VZRestoreCatalog.m" \
@@ -122,6 +127,9 @@ xcrun --sdk iphoneos clang \
     "$VZ_REPO_ROOT/vz/host/VZSettingsViewController.m" \
     "$VZ_REPO_ROOT/vz/host/VZTrackpadScrollBridge.m" \
     "$VZ_REPO_ROOT/vz/host/VZVMLibraryViewController.m" \
+    "$VZ_REPO_ROOT/vz/host/VZNativeTouchIdentity.m" \
+    "$VZ_REPO_ROOT/vz/host/VZNativeTouchContacts.m" \
+    "$VZ_REPO_ROOT/vz/host/VZNativeTouchInput.m" \
     "$VZ_REPO_ROOT/vz/host/VirtualMacApp.m" \
     -o "$BIN"
 xcrun --sdk iphoneos clang \

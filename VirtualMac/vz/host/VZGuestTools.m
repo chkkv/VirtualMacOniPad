@@ -550,6 +550,8 @@ static void VZGuestToolsUninstall(void)
              "2>/dev/null || true; "
          "/bin/launchctl bootout system/com.mac.virtual.opengl-compat "
              "2>/dev/null || true; "
+         "/bin/launchctl bootout system/com.mac.virtual.gamepad-receiver "
+             "2>/dev/null || true; "
          "/bin/launchctl unsetenv DYLD_INSERT_LIBRARIES "
              "2>/dev/null || true; "
          "/bin/launchctl asuser \"$uid\" /bin/launchctl unsetenv "
@@ -565,7 +567,9 @@ static void VZGuestToolsUninstall(void)
          "/bin/rm -rf /Library/VirtualMac "
              "/Library/LaunchAgents/com.mac.virtual.guest-tools.plist "
              "/Library/LaunchAgents/com.mac.virtual.opengl-compat.plist "
-             "/Library/LaunchDaemons/com.mac.virtual.opengl-compat.plist";
+             "/Library/LaunchDaemons/com.mac.virtual.opengl-compat.plist "
+             "/Library/LaunchDaemons/com.mac.virtual.gamepad-receiver.plist; "
+         "/bin/rm -f /Users/Shared/.VirtualMacGamepadMappingEnabled";
     VZGuestToolsRun(@"/bin/sh", @[@"-c", script],
         ^(BOOL success, NSData *output) {
             (void)output;
@@ -632,6 +636,14 @@ static void VZGuestToolsInstallPayload(uint64_t generation,
             completion(NO);
             return;
         }
+        NSString *update =
+            @"set -e; /bin/mkdir -p /Library/VirtualMac; "
+             "/usr/sbin/chown root:wheel "
+                 "/tmp/VirtualMacGuestToolsConfiguration.plist; "
+             "/bin/chmod 644 "
+                 "/tmp/VirtualMacGuestToolsConfiguration.plist; "
+             "/bin/mv -f /tmp/VirtualMacGuestToolsConfiguration.plist "
+                 "/Library/VirtualMac/HostConfiguration.plist";
         NSString *check = [NSString stringWithFormat:
             @"test \"$(cat /Library/VirtualMac/.build 2>/dev/null)\" = '%@'",
             build];
@@ -641,14 +653,6 @@ static void VZGuestToolsInstallPayload(uint64_t generation,
             if (generation != __atomic_load_n(&gGuestProvisioningGeneration,
                                               __ATOMIC_ACQUIRE)) return;
             if (current) {
-                NSString *update =
-                    @"set -e; /bin/mkdir -p /Library/VirtualMac; "
-                     "/usr/sbin/chown root:wheel "
-                         "/tmp/VirtualMacGuestToolsConfiguration.plist; "
-                     "/bin/chmod 644 "
-                         "/tmp/VirtualMacGuestToolsConfiguration.plist; "
-                     "/bin/mv -f /tmp/VirtualMacGuestToolsConfiguration.plist "
-                         "/Library/VirtualMac/HostConfiguration.plist";
                 VZGuestToolsRun(@"/bin/sh", @[@"-c", update],
                     ^(BOOL updated, NSData *updateOutput) {
                     (void)updateOutput;
@@ -681,6 +685,16 @@ static void VZGuestToolsInstallPayload(uint64_t generation,
                         "2>/dev/null || true; "
                      "/bin/launchctl bootout system/com.mac.virtual.opengl-compat "
                         "2>/dev/null || true; "
+                     "/bin/launchctl bootout "
+                        "system/com.mac.virtual.gamepad-receiver "
+                        "2>/dev/null || true; "
+                     "/bin/rm -f "
+                        "/Library/LaunchDaemons/com.mac.virtual.gamepad-receiver.plist "
+                        "/Users/Shared/.VirtualMacGamepadMappingEnabled "
+                        "/Library/VirtualMac/VirtualMacGamepadReceiver "
+                        "/Library/VirtualMac/VirtualMacGamepadReceiverService "
+                        "/Library/VirtualMac/GamepadRelayAllowed "
+                        "/Library/VirtualMac/GamepadRelayTransport; "
                      "/bin/launchctl unsetenv DYLD_INSERT_LIBRARIES "
                         "2>/dev/null || true; "
                      "login_hook=$(/usr/bin/defaults read "
@@ -698,10 +712,14 @@ static void VZGuestToolsInstallPayload(uint64_t generation,
                         "-C /tmp/VirtualMacGuestToolsPayload; "
                      "/bin/mkdir -p /Library/VirtualMac /Library/LaunchAgents; "
                      "/bin/rm -rf '/Library/VirtualMac/Virtual Mac Guest Tools.app'; "
+                     "/bin/rm -rf /Library/VirtualMac/Gamepad; "
                      "/bin/cp -R '/tmp/VirtualMacGuestToolsPayload/Library/VirtualMac/Virtual Mac Guest Tools.app' "
                         "/Library/VirtualMac/; "
                      "/bin/cp -f /tmp/VirtualMacGuestToolsPayload/Library/VirtualMac/OpenGLPVGCompat.dylib "
                         "/Library/VirtualMac/OpenGLPVGCompat.dylib; "
+                     "/bin/cp -R /tmp/VirtualMacGuestToolsPayload/Library/VirtualMac/Gamepad "
+                        "/Library/VirtualMac/Gamepad "
+                        "|| /bin/rm -rf /Library/VirtualMac/Gamepad; "
                      "/usr/sbin/chown root:wheel "
                         "/tmp/VirtualMacGuestToolsConfiguration.plist; "
                      "/bin/chmod 644 "
@@ -716,6 +734,15 @@ static void VZGuestToolsInstallPayload(uint64_t generation,
                         "'/Library/VirtualMac/Virtual Mac Guest Tools.app'; "
                      "/usr/bin/codesign --verify --strict "
                         "/Library/VirtualMac/OpenGLPVGCompat.dylib; "
+                     "if test -f /Library/VirtualMac/Gamepad/VirtualMacGamepadReceiver "
+                        "-a -f '/Library/VirtualMac/Gamepad/Start VirtualMac Gamepad.command'; "
+                     "then /bin/chmod 755 "
+                        "/Library/VirtualMac/Gamepad/VirtualMacGamepadReceiver "
+                        "'/Library/VirtualMac/Gamepad/Start VirtualMac Gamepad.command' "
+                        "&& /usr/bin/codesign --verify --strict "
+                        "/Library/VirtualMac/Gamepad/VirtualMacGamepadReceiver "
+                        "|| /bin/rm -rf /Library/VirtualMac/Gamepad; "
+                     "else /bin/rm -rf /Library/VirtualMac/Gamepad; fi; "
                      "/bin/cp -f /tmp/VirtualMacGuestToolsPayload/Library/LaunchAgents/com.mac.virtual.guest-tools.plist "
                         "/Library/LaunchAgents/com.mac.virtual.guest-tools.plist.new; "
                      "/usr/sbin/chown root:wheel "
@@ -739,7 +766,28 @@ static void VZGuestToolsInstallPayload(uint64_t generation,
                     if (!installed) {
                         VZGuestToolsLog(@"payload setup failed: %@",
                                         text ?: @"unknown error");
-                        completion(NO);
+                        // The setup script boots the agent out before
+                        // replacing it. Do not leave Guest Tools dead when it
+                        // stops partway: install the new configuration and
+                        // restart whatever agent is still on disk, so it can
+                        // acknowledge this session's token and end the retry
+                        // loop. A missing agent simply fails to bootstrap.
+                        VZGuestToolsRun(@"/bin/sh", @[@"-c", update],
+                            ^(BOOL restored, NSData *restoreOutput) {
+                            (void)restored;
+                            (void)restoreOutput;
+                            if (generation != __atomic_load_n(
+                                    &gGuestProvisioningGeneration,
+                                    __ATOMIC_ACQUIRE)) {
+                                completion(NO);
+                                return;
+                            }
+                            VZGuestToolsActivate(NO, generation,
+                                ^(BOOL activated) {
+                                    (void)activated;
+                                    completion(NO);
+                                });
+                        });
                         return;
                     }
                     VZGuestToolsLog(@"installed guest payload build %@", build);

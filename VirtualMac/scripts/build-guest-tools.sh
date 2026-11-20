@@ -12,6 +12,7 @@ need_command xcrun
 
 OUT="${VZ_GUEST_TOOLS_BUILD:-$VZ_BUILD_ROOT/guest-tools}"
 OPENGL_OUT="$VZ_BUILD_ROOT/guest-opengl"
+GAMEPAD_RECEIVER="$VZ_BUILD_ROOT/guest-gamepad-probe"
 APP="$OUT/Virtual Mac Guest Tools.app"
 CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
@@ -19,6 +20,7 @@ RESOURCES="$CONTENTS/Resources"
 SYMBOL_CATALOG="$OUT/VirtualMacGuestTools.xcassets"
 
 "$SCRIPT_DIR/development/build-opengl-guest-compat.sh"
+"$SCRIPT_DIR/development/build-guest-gamepad-probe.sh"
 
 rm -rf "$APP" "$OUT/VirtualMac.iconset" "$OUT/payload" "$SYMBOL_CATALOG"
 rm -f "$OUT/VirtualMacGuestTools.arm64" \
@@ -26,13 +28,15 @@ rm -f "$OUT/VirtualMacGuestTools.arm64" \
     "$OUT/OpenGLPVGCompat.dylib" \
     "$OUT/com.mac.virtual.guest-tools.plist" \
     "$OUT/com.mac.virtual.opengl-compat.plist" \
+    "$OUT/VirtualMacGamepadReceiver" \
+    "$OUT/Start VirtualMac Gamepad.command" \
     "$OUT/Virtual Mac OpenGL Acceleration" \
     "$OUT/VirtualMacGuestTools.tar.gz"
 mkdir -p "$MACOS" "$RESOURCES"
 cp "$VZ_REPO_ROOT/vz/guest/VirtualMacGuestTools-Info.plist" \
     "$CONTENTS/Info.plist"
 plutil -replace CFBundleShortVersionString -string \
-    "${VZ_RELEASE_VERSION:-1.2.3}" "$CONTENTS/Info.plist"
+    "${VZ_RELEASE_VERSION:-1.2.4}" "$CONTENTS/Info.plist"
 
 for architecture in arm64 x86_64; do
     xcrun --sdk macosx clang -arch "$architecture" -fblocks \
@@ -70,14 +74,23 @@ iconutil -c icns "$ICONSET" -o "$RESOURCES/VirtualMac.icns"
 codesign --force --sign - "$APP"
 
 cp "$OPENGL_OUT/OpenGLPVGCompat.dylib" "$OUT/OpenGLPVGCompat.dylib"
+cp "$GAMEPAD_RECEIVER" "$OUT/VirtualMacGamepadReceiver"
+cp "$VZ_REPO_ROOT/vz/guest/Start VirtualMac Gamepad.command" \
+    "$OUT/Start VirtualMac Gamepad.command"
 cp "$VZ_REPO_ROOT/vz/guest/com.mac.virtual.guest-tools.plist" \
     "$OUT/com.mac.virtual.guest-tools.plist"
 PAYLOAD="$OUT/payload"
-mkdir -p "$PAYLOAD/Library/VirtualMac" "$PAYLOAD/Library/LaunchAgents"
+mkdir -p "$PAYLOAD/Library/VirtualMac/Gamepad" \
+    "$PAYLOAD/Library/LaunchAgents"
 cp -R "$APP" "$PAYLOAD/Library/VirtualMac/"
 cp "$OUT/OpenGLPVGCompat.dylib" "$PAYLOAD/Library/VirtualMac/"
+cp "$OUT/VirtualMacGamepadReceiver" "$PAYLOAD/Library/VirtualMac/Gamepad/"
+cp "$OUT/Start VirtualMac Gamepad.command" \
+    "$PAYLOAD/Library/VirtualMac/Gamepad/"
 cp "$OUT/com.mac.virtual.guest-tools.plist" \
     "$PAYLOAD/Library/LaunchAgents/"
+chmod 755 "$PAYLOAD/Library/VirtualMac/Gamepad/VirtualMacGamepadReceiver" \
+    "$PAYLOAD/Library/VirtualMac/Gamepad/Start VirtualMac Gamepad.command"
 # Do not encode checkout provenance into the guest payload. macOS 27 launchd
 # rejects quarantined LaunchAgents even when their syntax, ownership, and code
 # signature are valid.
